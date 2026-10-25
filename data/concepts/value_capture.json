@@ -1,0 +1,41 @@
+{
+ "participants": [
+  {
+   "participant": "Farmer",
+   "brings": "Land, timing, data permissions",
+   "walk_away": "Mixed-fleet add-ons, older machines",
+   "kind": "partner"
+  },
+  {
+   "participant": "Deere",
+   "brings": "Machines that act in the field; installed base",
+   "walk_away": "Sell machines without the digital layer",
+   "kind": "owned"
+  },
+  {
+   "participant": "Independent dealers",
+   "brings": "Installation, service, trust",
+   "walk_away": "For farmers: independent repair (2026 order)",
+   "kind": "partner"
+  },
+  {
+   "participant": "Agronomy software",
+   "brings": "Bayer FieldView, BASF xarvio: prescriptions tied to their inputs",
+   "walk_away": "Their own platforms; rival equipment",
+   "kind": "partner"
+  },
+  {
+   "participant": "Connectivity and AI",
+   "brings": "Starlink rural coverage; OpenAI models",
+   "walk_away": "They sell to anyone",
+   "kind": "partner"
+  },
+  {
+   "participant": "Rivals",
+   "brings": "AGCO\u2013PTx Trimble, CNH\u2013Raven: the farmer's outside option",
+   "walk_away": "Serve the farmer directly",
+   "kind": "partner"
+  }
+ ],
+ "source_line": "Source: Brandenburger and Stuart (1996); Deere relationships from public sources. Magnitudes illustrative."
+}

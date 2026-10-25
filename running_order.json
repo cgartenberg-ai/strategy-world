@@ -1,0 +1,23 @@
+{
+  "_how": "Sections of modules, played in this order. Move a module id to reorder; delete it to skip. Module ids and what they hold: src/flow/modules.js; master views (a screen of tiles you zoom into: questions, three-tests, roadmap): src/flow/views.js. 'use' picks the order the app opens with; ?order=everything in the address picks another. \"pause\": false on a section skips the black pause after it in show mode. 'deck' is for presenting beside PowerPoint (http://127.0.0.1:8731/?order=deck&show=1): one section per app slide in your deck, in the deck's order; the app pauses on black after each (after the three tests and the roadmap's build, your slides carry the Ryanair exercise, the break and the debrief). The old landscape map (landscape, close) is set aside: only 'everything' still plays it.",
+  "use": "am",
+  "orders": {
+    "am": [
+      { "section": "Six questions", "modules": ["questions"] },
+      { "section": "Roadmap", "modules": ["roadmap-intro"] },
+      { "section": "Stages", "modules": ["roadmap"] }
+    ],
+    "deck": [
+      { "section": "Six questions", "modules": ["questions"] },
+      { "section": "Roadmap", "modules": ["roadmap-intro"] },
+      { "section": "Stages", "modules": ["roadmap"] }
+    ],
+    "everything": [
+      { "section": "Intro", "modules": ["landscape"] },
+      { "section": "Questions with concepts", "modules": ["q1", "q1-fate", "q2", "q2-forces-all", "q3", "q3-concepts", "q4", "q5", "q5-concepts",
+        "q6", "management-industries", "management-within", "management-experiment", "activity-system", "q7", "southwest"] },
+      { "section": "Roadmap", "modules": ["roadmap"] },
+      { "section": "Close", "modules": ["close"] }
+    ]
+  }
+}

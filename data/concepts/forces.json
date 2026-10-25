@@ -1,0 +1,77 @@
+{
+  "note": "Teaching judgments, 0 (weak) to 1 (strong), for US public companies FY2021-25; reasons are six words or fewer. Edit freely. Picker (q2-forces-pick): the bar falls from no_forces_top to the industry's real average, each force pressing in proportion to its strength squared; a click then moves it by the change in the old model. Old Airlines/Beverages moves: bar = top x (1 - m)^a, m = 0.7 x strongest + 0.3 x average force, fitted to model_anchors.",
+  "forces": ["entrants", "suppliers", "rivalry", "buyers", "substitutes"],
+  "labels": {"entrants": "New entrants", "suppliers": "Suppliers", "rivalry": "Rivalry", "buyers": "Buyers", "substitutes": "Substitutes"},
+  "model_anchors": ["Airlines", "Beverages"],
+  "no_forces_top": 0.25,
+  "industries": {
+    "Oil and gas": {
+      "strength": {"rivalry": 0.4, "buyers": 0.3, "suppliers": 0.3, "entrants": 0.2, "substitutes": 0.4},
+      "why": {"rivalry": "Price takers, but capital discipline", "buyers": "Sold at world prices", "suppliers": "Rigs and services, cyclical", "entrants": "Reserves, capital and permits", "substitutes": "Renewables and EVs, slowly"}
+    },
+    "Beverages": {
+      "strength": {"entrants": 0.2, "suppliers": 0.15, "rivalry": 0.3, "buyers": 0.4, "substitutes": 0.45},
+      "why": {"entrants": "Brands and bottling networks", "suppliers": "Sugar, water, cans: commodities", "rivalry": "Few big brands, little price war", "buyers": "Big retailers, but must-carry brands", "substitutes": "Water, coffee, energy drinks"}
+    },
+    "Restaurants": {
+      "strength": {"rivalry": 0.6, "buyers": 0.35, "suppliers": 0.45, "entrants": 0.45, "substitutes": 0.4},
+      "why": {"rivalry": "A rival on every corner", "buyers": "Diners switch easily, can't haggle", "suppliers": "Wages and food costs rising", "entrants": "Easy to open, hard to scale", "substitutes": "Groceries, delivery, cooking at home"}
+    },
+    "Computers and hardware": {
+      "strength": {"rivalry": 0.5, "buyers": 0.4, "suppliers": 0.55, "entrants": 0.2, "substitutes": 0.3},
+      "why": {"rivalry": "PC makers fight on price", "buyers": "Big enterprise and retail buyers", "suppliers": "Few chip and screen suppliers", "entrants": "Scale, brands, ecosystems", "substitutes": "Phones and cloud replace boxes"}
+    },
+    "Chemicals": {
+      "strength": {"rivalry": 0.5, "buyers": 0.4, "suppliers": 0.45, "entrants": 0.2, "substitutes": 0.2},
+      "why": {"rivalry": "Commodity grades compete on price", "buyers": "Industrial buyers shop around", "suppliers": "Feedstock prices swing", "entrants": "Huge plants, permits, know-how", "substitutes": "Few substitutes for chemistry"}
+    },
+    "Semiconductors": {
+      "strength": {"rivalry": 0.6, "buyers": 0.5, "suppliers": 0.45, "entrants": 0.15, "substitutes": 0.1},
+      "why": {"rivalry": "Boom-bust capacity cycles", "buyers": "A few giant customers", "suppliers": "Few toolmakers and foundries", "entrants": "Billions to build a fab", "substitutes": "Nothing replaces the chip"}
+    },
+    "Medical devices": {
+      "strength": {"rivalry": 0.4, "buyers": 0.55, "suppliers": 0.25, "entrants": 0.2, "substitutes": 0.3},
+      "why": {"rivalry": "Few rivals in each niche", "buyers": "Hospital groups and insurers squeeze", "suppliers": "Components widely available", "entrants": "Approvals and surgeon loyalty", "substitutes": "Drugs and new procedures"}
+    },
+    "Retail": {
+      "strength": {"rivalry": 0.65, "buyers": 0.45, "suppliers": 0.2, "entrants": 0.35, "substitutes": 0.35},
+      "why": {"rivalry": "Price wars, Amazon everywhere", "buyers": "Shoppers compare prices instantly", "suppliers": "Big chains dictate terms", "entrants": "Online stores open cheaply", "substitutes": "Brands selling direct"}
+    },
+    "Pharmaceuticals": {
+      "strength": {"rivalry": 0.35, "buyers": 0.6, "suppliers": 0.2, "entrants": 0.2, "substitutes": 0.55},
+      "why": {"rivalry": "Patents keep rivals apart", "buyers": "Insurers and Medicare negotiate", "suppliers": "Ingredients are commodities", "entrants": "Decade-long trials and patents", "substitutes": "Generics when patents expire"}
+    },
+    "Food": {
+      "strength": {"rivalry": 0.45, "buyers": 0.65, "suppliers": 0.35, "entrants": 0.3, "substitutes": 0.45},
+      "why": {"rivalry": "Brands battle for shelf space", "buyers": "Walmart and Costco set terms", "suppliers": "Crop and packaging costs swing", "entrants": "Upstart brands, store labels", "substitutes": "Store brands, fresh food"}
+    },
+    "Aerospace and defense": {
+      "strength": {"rivalry": 0.35, "buyers": 0.75, "suppliers": 0.6, "entrants": 0.1, "substitutes": 0.15},
+      "why": {"rivalry": "Few primes, long contracts", "buyers": "Pentagon and airlines drive terms", "suppliers": "Engines, parts, skilled labor scarce", "entrants": "Decades of certification", "substitutes": "Little replaces flying or defense"}
+    },
+    "Utilities": {
+      "strength": {"rivalry": 0.15, "buyers": 0.8, "suppliers": 0.35, "entrants": 0.1, "substitutes": 0.3},
+      "why": {"rivalry": "Local monopolies", "buyers": "Regulators cap the return", "suppliers": "Fuel and equipment costs", "entrants": "One grid per town", "substitutes": "Rooftop solar and batteries"}
+    },
+    "Autos and parts": {
+      "strength": {"rivalry": 0.8, "buyers": 0.45, "suppliers": 0.6, "entrants": 0.45, "substitutes": 0.3},
+      "why": {"rivalry": "Many brands, heavy fixed costs", "buyers": "Buyers compare deals and financing", "suppliers": "Unions, chips, batteries", "entrants": "Tesla and Chinese EV makers", "substitutes": "Ride-hailing and transit"}
+    },
+    "Telecom": {
+      "strength": {"rivalry": 0.75, "buyers": 0.45, "suppliers": 0.4, "entrants": 0.35, "substitutes": 0.45},
+      "why": {"rivalry": "Carriers fight with promotions", "buyers": "Customers switch for deals", "suppliers": "Spectrum auctions, phone makers", "entrants": "Cable firms move into wireless", "substitutes": "Streaming and Wi-Fi calling"}
+    },
+    "Software and internet": {
+      "strength": {"rivalry": 0.75, "buyers": 0.4, "suppliers": 0.35, "entrants": 0.8, "substitutes": 0.45},
+      "why": {"rivalry": "Thousands of funded rivals", "buyers": "Easy to switch for many", "suppliers": "Engineers and cloud capacity", "entrants": "Cheap to launch in the cloud", "substitutes": "Open source and AI tools"}
+    },
+    "Airlines": {
+      "strength": {"entrants": 0.6, "suppliers": 0.8, "rivalry": 0.9, "buyers": 0.8, "substitutes": 0.5},
+      "why": {"entrants": "Low-cost carriers keep coming", "suppliers": "Two plane makers, unions, airports", "rivalry": "Many carriers, high fixed costs", "buyers": "Fares compared in seconds", "substitutes": "Rail, car, video call"}
+    },
+    "Biotechnology": {
+      "strength": {"rivalry": 0.55, "buyers": 0.55, "suppliers": 0.5, "entrants": 0.7, "substitutes": 0.45},
+      "why": {"rivalry": "Many chasing the same targets", "buyers": "Payers resist new drug prices", "suppliers": "Scarce scientists, costly trials", "entrants": "Venture money funds new rivals", "substitutes": "Rival therapies, then generics"}
+    }
+  }
+}

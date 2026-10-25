@@ -1,0 +1,47 @@
+{
+  "title": "Ryanair",
+  "source": "Activity system as drawn in C. Gartenberg's Ryanair slides (after the failed launch).",
+  "note": "x, y are slide fractions (0-1, left-right, top-bottom), taken from the slide geometry.",
+  "hubs": [
+    {"id": "fares", "label": "Lowest fares", "x": 0.35, "y": 0.43},
+    {"id": "frills", "label": "No frills service", "x": 0.65, "y": 0.43},
+    {"id": "markets", "label": "Focus on secondary, underserved markets", "x": 0.36, "y": 0.67},
+    {"id": "lean", "label": "Lean operations", "x": 0.63, "y": 0.68}
+  ],
+  "activities": [
+    {"id": "seats", "label": "No seat assignments", "x": 0.65, "y": 0.21, "cluster": "frills"},
+    {"id": "meals", "label": "No meals", "x": 0.59, "y": 0.30, "cluster": "frills"},
+    {"id": "dutyfree", "label": "Duty free", "x": 0.70, "y": 0.30, "cluster": "frills"},
+    {"id": "ads", "label": "Seat-back advertising", "x": 0.77, "y": 0.41, "cluster": "frills"},
+    {"id": "lowit", "label": "Low IT investment", "x": 0.72, "y": 0.52, "cluster": "frills"},
+    {"id": "nobags", "label": "No baggage transfer", "x": 0.60, "y": 0.56, "cluster": "frills"},
+    {"id": "incent", "label": "Employee incentives", "x": 0.49, "y": 0.62, "cluster": "frills"},
+    {"id": "maxseat", "label": "Max seating config", "x": 0.47, "y": 0.23, "cluster": "frills"},
+    {"id": "extras", "label": "Charge for additional services", "x": 0.45, "y": 0.34, "cluster": "frills"},
+    {"id": "unions", "label": "No unions", "x": 0.50, "y": 0.49, "cluster": "lean"},
+    {"id": "fleet", "label": "Standardized fleet of 737s", "x": 0.73, "y": 0.67, "cluster": "lean"},
+    {"id": "bulk", "label": "Bulk aircraft purchases", "x": 0.82, "y": 0.67, "cluster": "lean"},
+    {"id": "ground", "label": "Outsource ground ops", "x": 0.70, "y": 0.82, "cluster": "lean"},
+    {"id": "p2p", "label": "Point-to-point short haul, no hub", "x": 0.58, "y": 0.84, "cluster": "lean"},
+    {"id": "turn", "label": "25-minute gate turnaround", "x": 0.47, "y": 0.74, "cluster": "lean"},
+    {"id": "single", "label": "Single class fares", "x": 0.35, "y": 0.29, "cluster": "fares"},
+    {"id": "monitor", "label": "Active price monitoring", "x": 0.25, "y": 0.38, "cluster": "fares"},
+    {"id": "leisure", "label": "Focus on price-sensitive leisure travel", "x": 0.24, "y": 0.51, "cluster": "fares"},
+    {"id": "playoff", "label": "Play airports, cities off each other", "x": 0.24, "y": 0.64, "cluster": "fares"},
+    {"id": "fees", "label": "Negotiate low landing and other fees", "x": 0.23, "y": 0.78, "cluster": "fares"},
+    {"id": "first", "label": "Enter first on routes, preempt competition", "x": 0.35, "y": 0.79, "cluster": "fares"},
+    {"id": "bridges", "label": "No air bridges", "x": 0.47, "y": 0.86, "cluster": "fares"}
+  ],
+  "links": [
+    ["fares", "frills"], ["fares", "markets"], ["fares", "lean"], ["frills", "markets"], ["frills", "lean"], ["markets", "lean"],
+    ["frills", "seats"], ["frills", "meals"], ["frills", "dutyfree"], ["frills", "ads"], ["frills", "lowit"], ["frills", "nobags"],
+    ["frills", "incent"], ["frills", "maxseat"], ["frills", "extras"],
+    ["fares", "monitor"], ["fares", "single"], ["fares", "leisure"], ["fares", "maxseat"], ["fares", "extras"],
+    ["markets", "leisure"], ["markets", "playoff"], ["markets", "fees"], ["markets", "first"], ["markets", "turn"],
+    ["lean", "turn"], ["lean", "p2p"], ["lean", "ground"], ["lean", "incent"], ["lean", "fleet"],
+    ["dutyfree", "ads"], ["meals", "extras"], ["maxseat", "single"], ["unions", "incent"], ["incent", "turn"],
+    ["nobags", "turn"], ["p2p", "turn"], ["p2p", "ground"], ["bulk", "fleet"], ["bridges", "turn"], ["bridges", "fees"],
+    ["fees", "playoff"], ["fees", "first"], ["playoff", "leisure"], ["leisure", "monitor"]
+  ],
+  "build": ["hubs", "hublinks", "frills", "lean", "fares"]
+}

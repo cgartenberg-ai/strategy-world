@@ -1,0 +1,150 @@
+{
+ "syverson": {
+  "p10": 100.0,
+  "p90": 192.0,
+  "source_line": "Source: Syverson (2004, 2011). US manufacturing plants in narrow industries; same inputs."
+ },
+ "dispersion": {
+  "year": 2021,
+  "measure": "TFP (gross output, revenue-based: industry-deflated revenue per composite input)",
+  "industries": [
+   {
+    "label": "Semiconductors and components",
+    "p90_p10": 30.908,
+    "p75_p25": 2.252
+   },
+   {
+    "label": "Pharmaceuticals",
+    "p90_p10": 3.834,
+    "p75_p25": 2.038
+   },
+   {
+    "label": "Plastics products",
+    "p90_p10": 3.428,
+    "p75_p25": 1.663
+   },
+   {
+    "label": "Electronic instruments",
+    "p90_p10": 3.313,
+    "p75_p25": 1.832
+   },
+   {
+    "label": "Structural metals",
+    "p90_p10": 3.254,
+    "p75_p25": 1.602
+   },
+   {
+    "label": "Machine shops, screws and bolts",
+    "p90_p10": 2.809,
+    "p75_p25": 1.582
+   },
+   {
+    "label": "Aerospace products",
+    "p90_p10": 2.784,
+    "p75_p25": 1.66
+   },
+   {
+    "label": "Printing",
+    "p90_p10": 2.737,
+    "p75_p25": 1.486
+   },
+   {
+    "label": "Meat processing",
+    "p90_p10": 2.654,
+    "p75_p25": 1.821
+   },
+   {
+    "label": "Motor vehicle parts",
+    "p90_p10": 2.569,
+    "p75_p25": 1.519
+   },
+   {
+    "label": "Bakeries and tortillas",
+    "p90_p10": 2.373,
+    "p75_p25": 1.398
+   },
+   {
+    "label": "Medical equipment",
+    "p90_p10": 2.253,
+    "p75_p25": 1.518
+   }
+  ],
+  "source_line": "Source: BLS\u2013Census Dispersion Statistics on Productivity, 2021. Plant total factor productivity."
+ },
+ "bloom": {
+  "groups": [
+   {
+    "group": "All multi-plant firms",
+    "between": 58.0,
+    "within": 42.0,
+    "label_within": "42%"
+   },
+   {
+    "group": "2-plant firms",
+    "between": 90.4,
+    "within": 9.6,
+    "label_within": "10%"
+   },
+   {
+    "group": "50\u201374 plants",
+    "between": 40.0,
+    "within": 60.0,
+    "label_within": "~60%"
+   },
+   {
+    "group": "150+ plants",
+    "between": 35.0,
+    "within": 65.0,
+    "label_within": "~65%"
+   }
+  ],
+  "source_line": "Source: Bloom et al. (2019), American Economic Review. Management practice scores, ~16,500 US plants."
+ },
+ "bloom_between": {
+  "scores": {
+   "mean": 0.615,
+   "sd": 0.172,
+   "p10": 0.379,
+   "p25": 0.521,
+   "p50": 0.648,
+   "p75": 0.742,
+   "p90": 0.806
+  },
+  "below_half": 0.27,
+  "at_least_075": 0.18,
+  "drivers": [
+   {
+    "key": "management",
+    "label": "Management",
+    "share": 0.216
+   },
+   {
+    "key": "rd",
+    "label": "R&D",
+    "share": 0.216
+   },
+   {
+    "key": "skills",
+    "label": "College-educated staff",
+    "share": 0.159
+   },
+   {
+    "key": "ict",
+    "label": "IT",
+    "share": 0.12
+   }
+  ],
+  "drivers_all": 0.441,
+  "experiment": {
+   "effect": 0.17,
+   "effect_exact": 0.166,
+   "coef": 0.154,
+   "se": 0.084,
+   "plants": 28,
+   "firms": 17
+  },
+  "source_line": "Source: Bloom et al. (2019), American Economic Review; Census MOPS, US manufacturing plants (management practice score 0-1).",
+  "drivers_source_line": "Source: Bloom et al. (2019), American Economic Review, Table 4: share of the gap in output per worker between the 90th- and 10th-percentile firm; associations, not causal effects.",
+  "experiment_source_line": "Source: Bloom, Eifert, Mahajan, McKenzie and Roberts (2013), Quarterly Journal of Economics. 28 plants in 17 Indian textile firms; consulting assigned at random."
+ }
+}

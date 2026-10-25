@@ -1,0 +1,14 @@
+three.js 0.185.1 (ESM build, no UMD wrapper needed — native <script type="module">)
+
+Source:
+  https://unpkg.com/three@0.185.1/build/three.module.js
+  https://unpkg.com/three@0.185.1/build/three.core.js   (REQUIRED companion —
+    recent three.js releases split the build into a shared "core" module
+    that three.module.js imports from a relative specifier, `./three.core.js`.
+    Both files must be vendored side by side; three.module.js will fail to
+    resolve without it. Verified: `import()` of three.module.js is clean
+    under plain Node with no DOM present — safe for globe.js's pure helper
+    functions to be unit-tested in the Node harness, since no WebGLRenderer
+    (the only DOM-touching call) is constructed at module scope.)
+
+Copied from orgscience/datacenterscape/vendor/three on 2026-10-23.
