@@ -76,3 +76,28 @@ export const gauge = (share, n) => Array.from({ length: n }, (_, i) => clamp01(c
 // questions 1-5 ask about problems, indicators, their review and display boards (monitoring), 6-8 about
 // targets' time frame, difficulty and awareness (targets): online appendix Table A2.
 export const MOPS_AREAS = [{ name: 'Monitoring', n: 5 }, { name: 'Targets', n: 3 }, { name: 'Incentives', n: 8 }];
+
+// ---- Q5's opening (q6-plants): the plant names, and its three clicks ----
+
+// The weaker plant on top, the stronger below (percentiles of productivity, same narrow industry).
+export const PLANT_NAMES = [['Plant A', '10th percentile'], ['Plant B', '90th percentile']];
+
+// Three clicks: 0 the two plants, 1 the inputs line up at their doors, 2 manufacturing starts (the inputs flow
+// in, the boxes stack up, the counters climb). The move's stepped clock y runs 0..2; step k begins once y passes k - 1.
+export const stepsBegun = y => [true, y > 1e-6, y > 1 + 1e-6];
+
+// How far the inputs have moved at race clock `race`: still until manufacturing starts (race = make), then with
+// the race, easing to a stop over `ease` seconds once the last box has left.
+export function feedAt(race, R, { make = 0.6, ease = 0.6 } = {}) {
+  const stop = R.start + R.run, u = Math.min(1, Math.max(0, race - stop) / ease);
+  return Math.max(0, (race <= stop ? race : stop + ease * (u - (u * u) / 2)) - make);
+}
+
+// The clocks the opening draws with at beat clock t. at = [plants, inputs, making]: the second each step began
+// (null until it has). plants, inputs: seconds since that step began (-1 before it); race: the race clock R,
+// 0 before manufacturing and `make` the moment it starts (so the first boxes leave within a second); feed: feedAt.
+export function openingClocks(t, at, R, { make = 0.6, ease = 0.6 } = {}) {
+  const since = a => (a == null ? -1 : t - a);
+  const race = at[2] == null ? 0 : make + Math.max(0, t - at[2]);
+  return { plants: since(at[0]), inputs: since(at[1]), race, feed: feedAt(race, R, { make, ease }) };
+}

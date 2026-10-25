@@ -1,5 +1,6 @@
 // Shown as Q5: Does management matter? (the activity system keeps the old "why")
-//   q6-plants      two factories, the same inputs: the stronger one's output races to 192 while the weaker's stops at 100 (Syverson)
+//   q6-plants      two factories, Plant A and Plant B, built in three clicks: the plants, the same inputs, then
+//                  manufacturing: Plant B's output races to 192 while Plant A's stops at 100 (Syverson)
 //   q6-plants-free the extra 92 becomes a ghost of a second factory: almost a second factory, for free
 //   q6-inside      inside the factories: 16 management-question lights, lit to scores 0.38 and 0.81 (Bloom et al. 2019)
 //   q6-practices   US plants on the management-score scale: a wide spread (Bloom et al. 2019, Table A4); after
@@ -20,7 +21,7 @@
 import { TITLES, go, dur } from './common.js';
 import { SHOTS } from '../rigmath.js';
 import { PAL, text, line, rect, circle, ellipse, poly, light, wrap } from '../concepts/kit.js';
-import { dotHistogram, boxesFor, gauge } from '../concepts/management.js';
+import { dotHistogram, boxesFor, gauge, PLANT_NAMES, openingClocks, feedAt, stepsBegun } from '../concepts/management.js';
 import {
   LANES, FACTORY, STREAM, PILE, RACE, RACE_END, BOX, factoryCentre, pileX0, slotCentre, pileTop, drawFactory, ghostFactory,
   inputLights, inputsLabel, outputPile, outputCounter, factoryLabel, scoreLights, SCORE_LIGHTS,
@@ -102,38 +103,35 @@ export function q6Scene(ctx) {
   const SY = prod.syverson || { p10: 100, p90: 192 };
   const syvSource = SY.source_line || '';
   const UNITS = [SY.p10, SY.p90];
-  const NAMES = [['A weaker plant', '10th percentile'], ['A stronger plant', '90th percentile']]; // of productivity, same industry
+  const NAMES = PLANT_NAMES; // Plant A (10th percentile of productivity, same industry) and Plant B (90th)
   const towerAgent = (x, base, h, w, color) => ({ ...light(x, base, { size: 0.001, color, alpha: 0 }),
     tower: h, towerBase: base, towerW: w, towerD: w * 0.6 });
   const Q5 = ['q6-plants', 'q6-plants-free', 'q6-inside', 'q6-practices', 'q6-drivers'];
   const isBack = (id, from) => Q5.indexOf(from) > Q5.indexOf(id); // arriving from a later Q5 move
-  const STOP = RACE.start + RACE.run;                             // the feeds stop as the last box leaves
-  const feedClock = t => { const u = Math.min(1, Math.max(0, t - STOP) / 0.6); return t <= STOP ? t : STOP + 0.6 * (u - (u * u) / 2); };
   const STREAM_LEN = LANES[0].x0 - STREAM.x0;
-  // the input lights at race clock t (o: overall opacity); the streams sweep in from the left at the start
-  const plantsLights = (t, o = 1) => inputLights(LANES, feedClock(Math.max(0, t)),
-    d => o * ramp(t, 0.35 + (d / STREAM_LEN) * 0.7, 0.35));
+  // the input lights at race clock `race` (o: overall opacity; tIn: seconds since the inputs were shown, as the
+  // streams sweep in from the left). They stand still until manufacturing starts, flow in with the race and stop
+  // as the last box leaves.
+  const plantsLights = (race, o = 1, tIn = 1e6) => inputLights(LANES, feedAt(race, RACE),
+    d => o * ramp(tIn, 0.05 + (d / STREAM_LEN) * 0.7, 0.35));
   const GAP0 = boxesFor(UNITS[0], PILE.perBox);                 // the stronger plant's boxes from here on are its extra output
-  // the settled (or racing) picture at race clock t. oFac: the factories and their names; oPile: piles and
+  // the settled (or racing) picture at race clock `race` (piles and counters). tPlants, tIn: seconds since the
+  // plants and the inputs were shown (they fade in). oFac: the factories and their names; oPile: piles and
   // counters; oIn: the inputs label; extra(k): the look of the stronger plant's extra boxes
-  function plantsDraw(t, { oFac = 1, oName = oFac, oPile = 1, oSub = 1, oIn = 1, extra = null } = {}) {
-    const out = [], oF = ramp(t, 0, 0.6) * oFac, oL = ramp(t, 0.25, 0.6) * oName;
+  function plantsDraw(race, { tPlants = 1e6, tIn = 1e6, oFac = 1, oName = oFac, oPile = 1, oSub = 1, oIn = 1, extra = null } = {}) {
+    const out = [], oF = ramp(tPlants, 0, 0.6) * oFac, oL = ramp(tPlants, 0.25, 0.6) * oName;
     LANES.forEach((L, i) => {
       out.push(...drawFactory(factoryCentre(L), 1, oF));
       out.push(...factoryLabel(L, NAMES[i][0], NAMES[i][1], oL, oL * oSub));
-      out.push(...outputPile(L, UNITS[i], t, { o: oPile, style: i && extra ? k => (k >= GAP0 ? extra(k) : null) : null }));
-      out.push(...outputCounter(L, UNITS[i], t, ramp(t, 1.1, 0.5) * oPile));
+      out.push(...outputPile(L, UNITS[i], race, { o: oPile, style: i && extra ? k => (k >= GAP0 ? extra(k) : null) : null }));
+      out.push(...outputCounter(L, UNITS[i], race, ramp(race, 1.1, 0.5) * oPile));
     });
-    out.push(...inputsLabel(ramp(t, 0.9, 0.6) * oIn));
+    out.push(...inputsLabel(ramp(tIn, 0.3, 0.6) * oIn));
     return out;
   }
   let raceT = 0; // the last race clock q6-plants drew (q6-plants-free finishes a race cut short)
-  // q6-plants starts its race late after a "you are here" or a zoom from the master view
-  const plantsStart = { shift: 0, t0: null };
-  function plantsClock(t) {
-    const s = plantsStart.t0 != null ? (performance.now() - plantsStart.t0) / 1000 : t;
-    return s - plantsStart.shift;
-  }
+  // q6-plants builds in three clicks (the plants, the inputs, manufacturing): the beat-clock second each began
+  const opening = { at: [0, null, null] };
 
   // ======================= 1b. the extra 92: almost a second factory, for free =======================
   const GHOST = (() => {
@@ -717,23 +715,36 @@ export function q6Scene(ctx) {
   const beats = [
     {
       id: 'q6-plants',
+      // three clicks (or Space): 1 the two plants, 2 the inputs line up at their doors, 3 manufacturing starts and
+      // the output races; the next click goes on to the free factory (a race cut short finishes there)
+      timelapse: { from: 0, to: 2, secondsPerYear: 0.25, clickSteps: true, spaceSteps: true },
       enter(instant) {
-        const from = instant ? null : prevBeat;
-        const fromTile = !!instant && !!ctx.prevScene?.hub && !EXPORTING; // zoomed in from the master view: the race runs after the zoom
+        const from = instant ? null : prevBeat, now = tickT(performance.now());
+        // after a "you are here" the plants fade in once it has gone; from a master-view tile they are already there
         const pre = !instant && ctx.prelude ? Math.max(0, 1.1 - (performance.now() - ctx.prelude.start) / 1000) : 0;
-        plantsStart.t0 = fromTile ? performance.now() : null;
-        plantsStart.shift = fromTile ? 0.75 : Math.min(pre, PRELUDE_SECONDS);
         plantsBack = isBack('q6-plants', from) ? from : null;
-        setup('q6-plants', instant, syvSource, plantsLights((instant && !fromTile) || plantsBack ? 1e6 : -1));
+        if (plantsBack) { opening.at = [now - 1e4, now - 1e4, now - 1e4]; ctx.director.setYear(2); } // back: settled, all three steps
+        else { opening.at = [instant ? now - 1e4 : Math.min(pre, PRELUDE_SECONDS), null, null]; ctx.director.setYear(0); } // Esc starts over
+        const c = openingClocks(now, opening.at, RACE);
+        setup('q6-plants', instant, syvSource, plantsLights(c.race, 1, c.inputs));
       },
-      tick(now) { ctx.world.setSome(plantsLights(plantsBack ? 1e6 : plantsClock((now - ctx.t0) / 1000))); },
+      frame(y) { // a step begins as the click starts it; stepping back clears it (export stills are settled)
+        const now = tickT(performance.now());
+        stepsBegun(y).forEach((on, k) => {
+          if (!k) return;
+          if (!on) opening.at[k] = null;
+          else if (opening.at[k] == null) opening.at[k] = EXPORTING ? now - 1e4 : now;
+        });
+      },
+      tick(now) { const c = openingClocks(tickT(now), opening.at, RACE); ctx.world.setSome(plantsLights(c.race, 1, c.inputs)); },
       draw: t => {
+        const c = openingClocks(clock(t), opening.at, RACE), look = { tPlants: c.plants, tIn: c.inputs };
+        raceT = c.race;
         if (plantsBack) { // back from the ghost factory: it fades and the extra boxes return
           const g = plantsBack === 'q6-plants-free' ? 1 - clamp01(clock(t) / 0.9) : 0;
-          return plantsDraw(1e6, { extra: g > 0 ? extraLook(g) : null }).concat(ghostDraw(g));
+          return plantsDraw(c.race, { ...look, extra: g > 0 ? extraLook(g) : null }).concat(ghostDraw(g));
         }
-        raceT = plantsClock(clock(t));
-        return plantsDraw(raceT);
+        return plantsDraw(c.race, look);
       },
     },
     {

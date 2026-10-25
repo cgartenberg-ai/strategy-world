@@ -12,7 +12,7 @@ const INSIGHTS = {
   q2: 'Strategic thinking requires understanding industry context',
   q3: 'Strategic thinking also requires choosing a strong position within the industry',
   q4: 'Competition no longer stops at industry lines',
-  q6: 'Management matters as much as R&D',
+  q6: 'Management matters',
   q7: 'Competitive advantage fades, for the most part, after five years',
 };
 
