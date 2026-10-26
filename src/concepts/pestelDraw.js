@@ -25,17 +25,23 @@ function topText(s, [x, y], size, o = {}) {
   return text(s, [x, y - ((n - 1) * size * U * 1.18) / 2], { size, ...o });
 }
 
-// ---------------- move 1: the six lenses ----------------
+// ---------------- move 1: the six lenses, one per click ----------------
 // Letters, words and definitions only, big and white: she speaks to the examples (LENSES keeps them).
+// c: the move's clock, 0 (none yet: the header alone) to 6 (all six). Lens i comes in as the clock passes from i to
+// i + 1 (one click): its letter drops in, then its word, then its definition. o: the whole screen's opacity.
 export const LENS_COLS = { x0: -6.25, dx: 2.5, letterY: 0.8, wordY: -0.45, defY: -1.1, defSize: 2.8, defWrap: 16 };
-export function drawLenses(t) {
+export const lensesState = c => LENSES.map((_, i) => {
+  const p = c - i;
+  return { letter: ramp(p, 0, 0.55), word: ramp(p, 0.25, 0.5), def: ramp(p, 0.4, 0.5) };
+});
+export function drawLenses(c, o = 1) {
   const out = [], C = LENS_COLS;
-  LENSES.forEach((l, i) => {
-    const x = C.x0 + C.dx * i, s = 0.25 + 0.3 * i;
-    const a = ramp(t, s, 0.55), w = ramp(t, s + 0.25, 0.5), d = ramp(t, s + 0.4, 0.5);
-    out.push(text(l.letter, [x, C.letterY + 0.3 * (1 - a)], { size: 11, weight: 700, color: LETTER, o: a, glow: true }));
-    out.push(text(l.word, [x, C.wordY], { size: 3.4, weight: 600, o: w }));
-    out.push(topText(wrap(l.def, C.defWrap), [x, C.defY], C.defSize, { color: PAL.white, o: d }));
+  lensesState(c).forEach(({ letter: a, word: w, def: d }, i) => {
+    if (a <= 0.003) return;
+    const l = LENSES[i], x = C.x0 + C.dx * i;
+    out.push(text(l.letter, [x, C.letterY + 0.3 * (1 - a)], { size: 11, weight: 700, color: LETTER, o: o * a, glow: true }));
+    out.push(text(l.word, [x, C.wordY], { size: 3.4, weight: 600, o: o * w }));
+    out.push(topText(wrap(l.def, C.defWrap), [x, C.defY], C.defSize, { color: PAL.white, o: o * d }));
   });
   return out;
 }

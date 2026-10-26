@@ -202,8 +202,55 @@ export function layoutSystem(ry, opts = {}) {
       x: (n.x - 0.5) * S.sx + S.ox + dx, y: (0.5 - n.y) * S.sy + S.oy + dy, sx: n.x, sy: n.y };
   });
   const byId = new Map(nodes.map(n => [n.id, n]));
+  return { ...g, nodes, byId, box: boxOf(nodes) };
+}
+
+function boxOf(nodes) {
   const xs = nodes.map(n => [n.x - n.rx, n.x + n.rx]).flat(), ys = nodes.map(n => [n.y - n.ry, n.y + n.ry]).flat();
-  return { ...g, nodes, byId, box: { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) } };
+  return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+}
+
+// Where q6-copy slides the system (frame units, leftward) to make room for the rival's copies at the right.
+export const COPY_DX = -2.2;
+// Seconds the stage-4 map takes to turn into the pull's smaller one (and back), mixLayout's k running 0..1.
+export const MORPH_S = 1.1;
+
+// One layout turning into another (stage 4: the big map into the pull's smaller one, and back): k = 0 is A, 1 is B.
+// Places and oval sizes mix; where the two wrap a label differently, A's words fade out and then B's fade in
+// (words: [[text, o], ...]) over the middle of the turn, never both at once. dxA, dxB shift A and B sideways first
+// (the copy's slide).
+export function mixLayout(A, B, k, { dxA = 0, dxB = 0, swap = [0.3, 0.7] } = {}) {
+  const f = Math.max(0, Math.min(1, k)), mid = (swap[0] + swap[1]) / 2, m = (a, b) => a + (b - a) * f;
+  const smooth = (lo, hi) => { const u = Math.max(0, Math.min(1, (f - lo) / (hi - lo))); return u * u * (3 - 2 * u); };
+  const out = 1 - smooth(swap[0], mid), into = smooth(mid, swap[1]);
+  const nodes = B.nodes.map(b => {
+    const a = A.byId.get(b.id) || b;
+    const n = { ...b, x: m(a.x + dxA, b.x + dxB), y: m(a.y, b.y), rx: m(a.rx, b.rx), ry: m(a.ry, b.ry), size: m(a.size, b.size) };
+    if (a.text === b.text || into >= 1) n.text = b.text;
+    else if (out >= 1) n.text = a.text;
+    else n.words = [[a.text, out], [b.text, into]];
+    return n;
+  });
+  return { ...B, nodes, byId: new Map(nodes.map(n => [n.id, n])), box: boxOf(nodes) };
+}
+
+// ---------------- Ryanair at launch (stage 4's opening) ----------------
+// ry.launch (ryanair.json): the four pillars of the failed 1986 launch, each drawn as a pillar of the stage-4 map (S),
+// on the spot of the relaunch pillar that replaced it (`at`), and the links that clash. L: the map, layoutSystem(ry, S).
+export const LAUNCH_SIZE = 3.0; // bigger words than the relaunch pillars': four pillars alone on the stage
+export const LAUNCH_WRAP = { service: 'High\nservice', lowfares: 'Low\nfares', busy: 'Busy\nroutes',
+  sameops: 'Same operations\nas rivals' };
+
+export function layoutLaunch(ry, L, S = BUILD) {
+  const la = ry.launch || { pillars: [], clashes: [] };
+  const nodes = la.pillars.map(p => {
+    const home = L.byId.get(p.at);
+    const o = fitOval(p.label, { size: LAUNCH_SIZE, bold: true, aspect: S.hubAspect, text: LAUNCH_WRAP[p.id] || null });
+    return { ...p, ...o, size: LAUNCH_SIZE, hub: true, x: home.x, y: home.y };
+  });
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const clashes = la.clashes.filter(c => byId.has(c.a) && byId.has(c.b)).map(c => ({ ...c }));
+  return { nodes, byId, clashes };
 }
 
 // ---------------- ellipse geometry ----------------

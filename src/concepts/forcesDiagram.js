@@ -1,8 +1,9 @@
 // The generic five forces diagram (roadmap stage 1, move industry-forces), after her slide (SMBC day 1, p. 21: "Scanning
 // the industry"), redrawn in the app's style: glowing outlined boxes, white sentence-case words, block arrows pointing
 // in at rivalry. One thing per click on the move's stepped clock c (0..STEPS):
-//   0 rivalry alone; 1-4 customers, suppliers, new entrants, substitutes (each box, then its arrow grows in);
-//   5-6 her two messages, upper left then lower left, the key words in light blue.
+//   0 nothing (the stage opens on black with its header alone); 1 rivalry; 2-5 customers, suppliers, new entrants,
+//   substitutes (each box, then its arrow grows in); 6-9 her four messages in her slide's order (upper left, lower left,
+//   upper right, lower right), the key words in light blue.
 // Pure: returns plain shapes for overlay.shapes (src/concepts/kit.js). Words are hers; edit them here.
 
 import { text, rect, poly, PAL } from './kit.js';
@@ -31,25 +32,27 @@ export const LAYOUT = {
 };
 const SZ = { label: 3.0, message: 3.4 }; // type sizes in U (1% of stage height)
 
-// Her two messages (her slide's other two, PESTEL shifts and a broad view of competition, are left out: the ecosystem
-// and the questions carry them). **Marked** words show in HI. Placed as on her slide: above and below the suppliers.
-const LEFT = LAYOUT.suppliers[0] - BOX.w / 2;
+// Her four messages, one per click, in her slide's order and places: above and below the suppliers (starting left of
+// them), then above and below the customers (starting at their left edge, as on her slide). **Marked** words show in HI
+// (a mark opens and closes within a line). tests/industry.test.js checks they fit without touching anything.
+const LEFT = LAYOUT.suppliers[0] - BOX.w / 2, RIGHT = LAYOUT.buyers[0] - BOX.w / 2;
+const UP = CEN[1] + BOX.h / 2 + 1.35, DOWN = CEN[1] - BOX.h / 2 - 1.35;
 export const MESSAGES = [
-  { text: 'Profitability of an industry\nis determined by **balance**\namong five competitive forces',
-    at: [LEFT, LAYOUT.suppliers[1] + BOX.h / 2 + 1.35] },
-  { text: 'Even **one “bad” force**\nis enough to drive profit\nout of an industry',
-    at: [LEFT, LAYOUT.suppliers[1] - BOX.h / 2 - 1.35] },
+  { text: 'Profitability of an industry\nis determined by **balance**\namong five competitive forces', at: [LEFT, UP] },
+  { text: 'Even **one “bad” force**\nis enough to drive profit\nout of an industry', at: [LEFT, DOWN] },
+  { text: 'Help us understand\n**PESTEL-driven shifts**\nin industry profits over time', at: [RIGHT, UP] },
+  { text: 'Encourages a\n**broad view** of\ncompetition', at: [RIGHT, DOWN] },
 ];
-export const STEPS = FORCES.length - 1 + MESSAGES.length; // 6: rivalry is up from the start
+export const STEPS = FORCES.length + MESSAGES.length; // 9: the first click brings rivalry
 
 export const plainText = s => String(s).replace(/\*\*/g, '').replace(/\s*\n\s*/g, ' ');
 
 // How far each thing has come in at clock c: boxes {o, grow (its arrow)}, messages [o].
 export function diagramState(c) {
   const step = (k, a, d) => ease.inOutCubic(clamp01((c - (k - 1) - a) / d)); // k: the click that brings it (1-based)
-  const boxes = { rivalry: { o: 1, grow: 1 } };
-  FORCES.slice(1).forEach((f, i) => { boxes[f] = { o: step(i + 1, 0, 0.45), grow: step(i + 1, 0.3, 0.6) }; });
-  return { boxes, messages: MESSAGES.map((m, j) => step(FORCES.length + j, 0, 0.7)) };
+  const boxes = { rivalry: { o: step(1, 0, 0.6), grow: 1 } }; // rivalry has no arrow
+  FORCES.slice(1).forEach((f, i) => { boxes[f] = { o: step(i + 2, 0, 0.45), grow: step(i + 2, 0.3, 0.6) }; });
+  return { boxes, messages: MESSAGES.map((m, j) => step(FORCES.length + 1 + j, 0, 0.7)) };
 }
 
 // A block arrow like her slide's, from a (its box's edge) to b (rivalry's edge), grown to `grow` of its length.

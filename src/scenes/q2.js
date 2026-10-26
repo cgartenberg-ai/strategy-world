@@ -11,7 +11,7 @@ import { TITLES, SOURCES, pinLabels, go, dur, sectorLegend } from './common.js';
 import { hexToRgb, PLATE_HEX } from '../colors.js';
 import { ramp } from '../anim.js';
 import { bandRows, fitRows, textEm } from '../labelfit.js';
-import { barSwings, swingRange } from '../concepts/swings.js';
+import { barWhiskers, swingRange } from '../concepts/swings.js';
 import { line, text, PAL } from '../concepts/kit.js';
 import { roaToY, yTransform } from '../layouts.js';
 
@@ -63,16 +63,15 @@ export function q2Scene(ctx) {
 
   const hiddenFlat = new Map([...V.F.agents].map(([id, a]) => [id, { ...a, alpha: 0 }]));
 
-  // ---- q2-swings: each industry's 2001–25 bar, built like the FY2021–25 bar, and its swing (±1 SD of the same
-  // firms' yearly average): like for like, so the bars move only because the years change ----
-  const SW = barSwings(q2), SW_RANGE = swingRange(SW), SWT = yTransform(SW_RANGE[0], SW_RANGE[1]);
+  // ---- q2-swings: whiskers on the sorted FY2021–25 bars themselves (they don't move or re-sort), ±1 SD of the same
+  // firms' yearly average over 2001–25. The bars (q2-flat) already sit on the axis wide enough for them. ----
+  const SW = barWhiskers(q2), SW_RANGE = swingRange(SW), SWT = yTransform(SW_RANGE[0], SW_RANGE[1]);
   const SW_TICKS = [];
   for (let v = SW_RANGE[0]; v <= SW_RANGE[1] + 1e-9; v += 0.05) SW_TICKS.push(Math.round(v * 100) / 100);
-  const SWING_PLATES = V.F.plates.map((p, k) => (SW[k] ? { ...p, top: roaToY(SW[k].m).y } : p));
-  const SWING_SOURCE = 'Source: Compustat via WRDS. Bars: average of each firm\u2019s operating return on assets, 2001–25, '
-    + 'as for FY2021–25; whiskers: ±1 standard deviation of those firms\u2019 yearly average.';
-  const SWING = { glide: 1.6, grow: 1.8, span: 0.9, w: 0.45 }; // s: bars glide, whiskers start, grow; whisker width U
-  const KEY = { words: '2001–2025: average and swings', size: 2.4, x: 7.33, y: 3.28 }; // right edge; the sector key's row
+  const SWING_SOURCE = 'Source: Compustat via WRDS. Bars: average of each firm\u2019s operating return on assets, FY2021–25; '
+    + 'whiskers: ±1 standard deviation of the industry\u2019s firms\u2019 yearly average, 2001–25.';
+  const SWING = { grow: 0.3, span: 0.9, w: 0.45 }; // s: whiskers start, grow; whisker width U
+  const KEY = { words: 'Year-to-year swings, 2001–2025', size: 2.4, x: 7.33, y: 3.28 }; // right edge; the sector key's row
   const whisker = (x, lo, hi, cap, o) => [line([x, lo], [x, hi], { color: PAL.white, w: SWING.w, o }),
     line([x - cap, lo], [x + cap, lo], { color: PAL.white, w: SWING.w, o }),
     line([x - cap, hi], [x + cap, hi], { color: PAL.white, w: SWING.w, o })];
@@ -110,6 +109,11 @@ export function q2Scene(ctx) {
     ctx.overlay.legendOpacity(Math.abs(1 - 2 * w)); // the size key fades out, the industry key fades in
   }
   const named = () => pinLabels(ctx);
+  // a slow, unbroken turn from the opening jumble until the bars; stills (export) stay still. main.js stops it on any
+  // move without spin: true (here, q2-flat), folding the turn in so the camera glides on from what's on screen.
+  const EXPORTING = typeof location !== 'undefined' && new URLSearchParams(location.search).has('export');
+  const SPIN_DEG_PER_S = 3;
+  const spinOn = () => { if (!EXPORTING && ctx.rig.spin && !ctx.rig.spinning()) ctx.rig.spin(SPIN_DEG_PER_S); };
 
   return {
     id: 'q2',
@@ -117,7 +121,9 @@ export function q2Scene(ctx) {
       {
         id: 'q2-scramble',
         orbit: true,
+        spin: true, // the landscape turns slowly until the bars (q2-flat)
         enter(instant) {
+          spinOn();
           setup(true, SIZE_KEY);
           go(ctx, SHOTS.landscape, 3400, instant);
           ctx.world.setTargets(jumbled, { duration: dur(ctx, 2600), stagger: 0.8 });
@@ -129,7 +135,9 @@ export function q2Scene(ctx) {
       {
         id: 'q2-arrive',
         orbit: true,
+        spin: true, // the landscape turns slowly until the bars (q2-flat)
         enter(instant) {
+          spinOn();
           setup(true, SIZE_KEY);
           go(ctx, SHOTS.landscape, 1200, instant);
           ctx.world.setTargets(sized, { duration: dur(ctx, 2800), stagger: 0.5, staggerBy: 'x' });
@@ -142,7 +150,9 @@ export function q2Scene(ctx) {
       {
         id: 'q2-color',
         orbit: true,
+        spin: true, // the landscape turns slowly until the bars (q2-flat)
         enter(instant) {
+          spinOn();
           setup(true, instant ? SECTOR_KEY : SIZE_KEY);
           paintW = null; keySwapped = !!instant;
           ctx.world.setTargets(sized, { duration: dur(ctx, 600) });
@@ -157,7 +167,9 @@ export function q2Scene(ctx) {
       {
         id: 'q2-glide',
         orbit: true,
+        spin: true, // the landscape turns slowly until the bars (q2-flat)
         enter(instant) {
+          spinOn();
           setup(true);
           ctx.world.setTargets(V.L.agents, { duration: dur(ctx, 800) });
           ctx.world.plates.set(V.L.plates, { duration: dur(ctx, 800), body: 0.07, lid: 0.22 });
@@ -176,24 +188,23 @@ export function q2Scene(ctx) {
           ctx.world.setTargets(hiddenFlat, { duration: dur(ctx, 2600), stagger: 0.4 });
           ctx.world.plates.set(V.F.plates, { duration: dur(ctx, 2600), body: 0.5 }); // fuller bars; Q3 dims them under the dots
           ctx.world.ground.set(V.bands, { base: V.L.base, depth, opacity: 0, duration: dur(ctx, 2600) });
-          // bars alone: a tight axis so differences between industries are easy to see
-          ctx.world.setYRange(BARS_RANGE[0], BARS_RANGE[1], { duration: dur(ctx, 4400) });
-          ctx.overlay.axis({ label: 'Return on assets', ticks: BARS_TICKS });
+          // the axis already holds the swings' whiskers (q2-swings), so nothing moves when they come in
+          ctx.world.setYRange(SW_RANGE[0], SW_RANGE[1], { duration: dur(ctx, 4400) });
+          ctx.overlay.axis({ label: 'Return on assets', ticks: SW_TICKS });
         },
         labels: () => V.flatLabels(),
       },
       {
-        // the bars glide to their 2001–25 averages on an axis wide enough for the whiskers; once they land, the
-        // whiskers grow out of the tops; one short key, by the sector key
+        // the same bars, unmoved; white whiskers grow from their tops; one short key, by the sector key
         id: 'q2-swings',
         enter(instant) {
           setup(false);
           ctx.overlay.source(SWING_SOURCE);
           go(ctx, SHOTS.flat, 900, instant);
           ctx.world.setTargets(hiddenFlat, { duration: dur(ctx, 600) });
-          ctx.world.plates.set(SWING_PLATES, { duration: dur(ctx, SWING.glide * 1000), body: 0.5 });
+          ctx.world.plates.set(V.F.plates, { duration: dur(ctx, 600), body: 0.5 });
           ctx.world.ground.set([], { opacity: 0, duration: dur(ctx, 600) });
-          ctx.world.setYRange(SW_RANGE[0], SW_RANGE[1], { duration: dur(ctx, SWING.glide * 1000) });
+          ctx.world.setYRange(SW_RANGE[0], SW_RANGE[1], { duration: dur(ctx, 600) });
           ctx.overlay.axis({ label: 'Return on assets', ticks: SW_TICKS });
         },
         draw: t => swingShapes(t),

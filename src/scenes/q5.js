@@ -31,7 +31,7 @@ const RING = ['farmer', 'dealers', 'software', 'ai', 'rivals']; // by slot
 const ORDER = ['farmer', 'software', 'deere', 'dealers', 'ai'];        // the stick, bottom to top
 
 // The coalition big and centred (first beat), then small on the left beside the stick.
-const BIG = { cx: 0, cy: -0.3, R: 2.45, rc: 0.95, r: 0.56, size: 2.2, deere: 2.8 };
+export const BIG = { cx: 0, cy: -0.3, R: 2.45, rc: 0.95, r: 0.56, size: 2.2, deere: 2.8 };
 const SMALL = { cx: -3.9, cy: -0.4, R: 1.85, rc: 0.66, r: 0.42, size: 2.0, deere: 2.1 };
 const lerpL = (A, B, f) => Object.fromEntries(Object.keys(A).map(k => [k, mix(A[k], B[k], f)]));
 
@@ -136,6 +136,18 @@ function hexagon(L, { spoke = () => 1, pop = () => 1, ring = 1, names = 1, out =
       text('Deere', [C.x, C.y], { size: L.deere, weight: 600, color: PAL.deere, o: fade * Math.min(1, pc * 1.5) }));
   }
   return S;
+}
+
+// The coalition building itself in, t seconds into its move: Deere, the spokes and circles one by one, the ring, then
+// the names (settled by 3 s). On layout L (default: big and centred). q5-coalition draws it; so does roadmap stage 1's
+// ecosystem move (src/scenes/industry.js), which moves it aside for her callouts.
+export function coalitionShapes(t, L = BIG) {
+  return hexagon(L, {
+    pop: i => (i < 0 ? ramp(t, 0, 0.8, 'outQuart') : ramp(t, 0.85 + 0.16 * i, 0.55, 'outQuart')),
+    spoke: i => ramp(t, 0.55 + 0.16 * i, 0.5),
+    ring: ramp(t, 1.9, 0.9),
+    names: ramp(t, 2.3, 0.7),
+  });
 }
 
 export function q5Scene(ctx) {
@@ -259,15 +271,7 @@ export function q5Scene(ctx) {
   const coalitionBeat = {
     id: 'q5-coalition',
     enter(instant) { setup(instant); anim.clear(); },
-    draw: t => {
-      lastT = t;
-      return hexagon(BIG, {
-        pop: i => (i < 0 ? ramp(t, 0, 0.8, 'outQuart') : ramp(t, 0.85 + 0.16 * i, 0.55, 'outQuart')),
-        spoke: i => ramp(t, 0.55 + 0.16 * i, 0.5),
-        ring: ramp(t, 1.9, 0.9),
-        names: ramp(t, 2.3, 0.7),
-      });
-    },
+    draw: t => { lastT = t; return coalitionShapes(t); },
   };
 
   const stickBeat = {

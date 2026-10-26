@@ -26,6 +26,7 @@ import { industryScene } from './scenes/industry.js';
 import { positionScene } from './scenes/position.js';
 import { feasibilityScene } from './scenes/feasibility.js';
 import { dynamicsScene } from './scenes/dynamics.js';
+import { closingScene } from './scenes/closing.js';
 import { q1Scene } from './scenes/q1.js';
 import { q2Scene } from './scenes/q2.js';
 import { q3Scene } from './scenes/q3.js';
@@ -82,7 +83,7 @@ async function boot() {
   const opening = { id: 'map', beats: land.beats.slice(0, 2) }, closing = { id: 'end', beats: land.beats.slice(2) };
   const built = [opening, q1Scene(ctx), withMore(q2Scene(ctx), q2Concepts), withMore(q3Scene(ctx), q3Concepts),
     q4Scene(ctx), q5Scene(ctx), q6Scene(ctx), withMore(q7Scene(ctx), q7Concepts), closing, testsScene(ctx), pestelScene(ctx),
-    industryScene(ctx), positionScene(ctx), feasibilityScene(ctx), dynamicsScene(ctx)];
+    industryScene(ctx), positionScene(ctx), feasibilityScene(ctx), dynamicsScene(ctx), closingScene(ctx)];
   // each question's opening (its words alone, then in the header: src/scenes/ask.js) goes in first, so a module's
   // `q1-*` takes it before the question's own moves
   const registry = new Map(askMoves(ctx).map(b => [b.id, b]));
@@ -128,6 +129,7 @@ async function boot() {
     ctx.shownBeat = b;
     if (!b.insight) ctx.insightLayer.hide();
     if (!b.ask) ctx.askLayer.hide();
+    if (!b.spin) ctx.rig.unspin(); // a slow turn (Q2's landscape) carries over only between moves that spin
     b.enter(instant);
     ctx.instant = false;
   };
@@ -178,6 +180,7 @@ async function boot() {
     if (i >= 0) goTo(i, 0);
   };
   const sorter = createSorter({ stage, director, sections: flow.sections, onGo: goTo });
+  if (params.has('all')) sorter.open(); // /all: open on the chooser (every section and move)
   const nav = createNav({ stage, director, sections: flow.sections, onJump: jumpTo, onOverview: () => sorter.toggle() });
   if (exporting) nav.hide();
   if (showMode) nav.el.classList.add('peek'); // invisible until the pointer reaches the top-right corner (N toggles it)

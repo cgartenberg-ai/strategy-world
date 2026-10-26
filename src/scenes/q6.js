@@ -18,6 +18,9 @@
 //   q6-system-full the full activity system builds, cluster by cluster
 //   q6-copy        a rival copies three activities; they sit alone, dim; Ryanair's system pulses as one
 //   q6-pull        pull one activity out: its links snap and a ripple runs through the system (click any)
+// In roadmap stage 4 the pull follows the map's build (feasibility-map), then the copy, then Ryanair today: the pull
+// opens on the big map and turns it into its own smaller one; the copy opens by putting the pulled activity back;
+// Left from Ryanair today the copy fades in already made. Their header is stage 4's (TITLES.feasibility).
 
 import { TITLES, go, dur } from './common.js';
 import { SHOTS } from '../rigmath.js';
@@ -32,8 +35,10 @@ import { ramp, mix, mixPt, CONCEPT } from '../anim.js';
 import { hexToRgb } from '../colors.js';
 import {
   layoutSystem, buildSchedule, distances, pullSpot, ovalHit, ellipseClip, plantDraw, plantScore, quantile,
+  mixLayout, BUILD, COPY_DX, MORPH_S,
 } from '../concepts/activity.js';
-import { RY, drawSystem } from '../concepts/activityDraw.js'; // the system's look, shared with stage 4's reveal
+import { RY, drawSystem, nameLabel, RY_NAME, BUILD_LOOK } from '../concepts/activityDraw.js'; // shared with stage 4's map
+import { fadeShapes } from './photo.js';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const hexMix = (h1, h2, f) => {
@@ -83,8 +88,8 @@ export function q6Scene(ctx) {
   let prevBeat = null, lastT = 0;
 
   function setup(id, instant, source, lights = new Map(), ms = 900) {
-    // the activity system is roadmap stage 4: her Test 2 question, as on every stage-4 screen
-    ctx.overlay.reset({ title: SYSTEM_BEATS.has(id) ? TITLES.test2 : TITLES.q6, source });
+    // the activity system is roadmap stage 4: its short question, as on every stage-4 screen
+    ctx.overlay.reset({ title: SYSTEM_BEATS.has(id) ? TITLES.feasibility : TITLES.q6, source });
     ctx.world.setYRange(undefined, undefined, { duration: dur(ctx, 600) });
     ctx.world.plates.set([], { duration: dur(ctx, 600) });
     ctx.world.ground.set([], { opacity: 0, duration: dur(ctx, 600) });
@@ -485,13 +490,14 @@ export function q6Scene(ctx) {
 
   // ======================= 4–6. Ryanair's activity system =======================
   const L = ry ? layoutSystem(ry) : null;
+  const LB = ry ? layoutSystem(ry, BUILD) : null; // stage 4's big map (src/scenes/feasibility.js), which the pull turns from
   const S = L ? buildSchedule(L, ry.build, { start: 0.7 }) : null;
   const HUB_END = S ? S.stageAt.frills ?? 3 : 3; // when the hubs and their links are done
   const sys = { dx: 0 };
   const sysSource = 'Activity system after the failed launch; from course slides.';
   const COPIED = ['single', 'meals', 'fleet'];
   const RIVAL = { x: 5.4, ys: [1.3, 0.05, -1.2], label: 2.25 };
-  const COPY_DX = -2.2;
+  const CARRY_S = 0.6; // Left from Ryanair today: its picture fades out over this as the copy fades in
 
   // One frame of the system (src/concepts/activityDraw.js; st: {dx, nodeO(id), linkF(k), pos(id) override,
   // hl(id)->{c,k}, pulse(id)->0..1, dim(id) bool, alpha, stubs:[], under:[], over:[]}). Links grow from the end built first.
@@ -502,7 +508,7 @@ export function q6Scene(ctx) {
     if (u <= 0 || u >= 1) return null;
     return ellipse([x, y], n.rx + 0.45 * u, n.ry + 0.45 * u, { stroke: color, w: 0.35, o: 0.8 * (1 - u), glow: true });
   };
-  const ryanairLabel = o => text('Ryanair', [-7.3, 2.5], { anchor: 'start', size: 2.2, weight: 600, color: '#FFFFFF', o });
+  const ryanairLabel = o => nameLabel(RY_NAME.relaunch, o); // as on stage 4's map, so it stays put from one to the next
   const EXPORT_T = 1e5; // export mode runs the beat clock from far in the past: hold the living effects at rest
   const breathe = t => (t > EXPORT_T ? 0.09 : 0.18 * (0.5 + 0.5 * Math.sin((2 * Math.PI * t) / 3.6)));
 
@@ -553,12 +559,35 @@ export function q6Scene(ctx) {
     return Math.exp(-(u * u) / 0.05) + Math.exp(-((u - period) ** 2) / 0.05);
   };
 
-  // fadeIn: the map was not on screen just before (stage 4 comes here from Ryanair today), so it fades in.
-  // The copies keep white words; they look dim (alone, unreinforced) by a thin, dark outline.
-  function copyDraw(t, dx0, fadeIn = false) {
-    const dx = mix(dx0, COPY_DX, ramp(t, 0, 1.2)), alpha = fadeIn ? ramp(t, 0, 0.6) : 1;
+  // The big map (stage 4's, LB) turning into this smaller one over MORPH_S seconds, slid by dx: the pull's (or, with
+  // the pull hidden, the copy's) first second after the map.
+  function turnDraw(t, dx) {
+    const k = ramp(t, 0, MORPH_S, 'inOutSine'), Lm = mixLayout(LB, L, k, { dxB: dx });
     sys.dx = dx;
-    const tc = 1.6; // copies are made
+    return [ryanairLabel(1), ...drawSystem(Lm, {
+      nodeO: () => 1, linkF: () => 1,
+      linkW: { hub: mix(BUILD_LOOK.linkW.hub, 0.85, k), act: mix(BUILD_LOOK.linkW.act, 0.46, k) },
+      pulse: id => (Lm.byId.get(id).hub ? breathe(t) * 0.6 * k : 0),
+    })];
+  }
+  const copyDx = (t, dx0) => mix(dx0, COPY_DX, ramp(t, 0, 1.2)); // the map slides left, making room for the rival
+
+  // fadeIn: the map was not on screen just before, so it fades in. settled: Left from Ryanair today, the copies are
+  // already made. The copies keep white words; they look dim (alone, unreinforced) by a thin, dark outline.
+  function copyDraw(t, dx0, { fadeIn = false, settled = false } = {}) {
+    const dx = settled ? COPY_DX : copyDx(t, dx0), alpha = fadeIn ? ramp(t, 0, 0.6) : 1;
+    sys.dx = dx;
+    const tc = settled ? -1e6 : 1.6; // copies are made
+    const over = rivalShapes(t, dx, tc, alpha);
+    const t0 = settled ? 0.8 : tc + 2.6;
+    return [ryanairLabel(alpha), ...systemShapes({
+      dx, over, alpha,
+      nodeO: () => 1, linkF: () => 1,
+      pulse: id => (t > t0 ? heartbeat(t, t0, id) : 0) * 0.9,
+    })];
+  }
+  // the rival's three copies, made at tc (they fly over from their places in the system, slid by dx), and its name
+  function rivalShapes(t, dx, tc = 1.6, alpha = 1) {
     const over = [];
     COPIED.forEach((id, i) => {
       const n = L.byId.get(id), home = [n.x + dx, n.y], dest = [RIVAL.x, RIVAL.ys[i]];
@@ -568,16 +597,11 @@ export function q6Scene(ctx) {
       const q = f, p = [ (1 - q) ** 2 * home[0] + 2 * (1 - q) * q * mid[0] + q * q * dest[0], (1 - q) ** 2 * home[1] + 2 * (1 - q) * q * mid[1] + q * q * dest[1] ];
       const fade = ramp(t, tc + i * 0.25 + 0.3, 1.3), edge = hexMix(PAL.amber, RY.dimEdge, fade);
       const fr = flashRing(n, home[0], home[1], t, tc + i * 0.25, PAL.amber); if (fr) over.push(fr);
-      over.push(ellipse(p, n.rx, n.ry, { fill: '#000', fo: f < 1 ? 0.55 : 1, stroke: edge, w: 0.3 - 0.18 * fade, copy: true }));
-      over.push(text(n.text, p, { size: n.size, color: '#FFFFFF' }));
+      over.push(ellipse(p, n.rx, n.ry, { fill: '#000', fo: f < 1 ? 0.55 : 1, stroke: edge, w: 0.3 - 0.18 * fade, o: alpha, copy: true }));
+      over.push(text(n.text, p, { size: n.size, color: '#FFFFFF', o: alpha }));
     });
-    over.push(text('Rival', [RIVAL.x, RIVAL.label], { size: 2.2, weight: 600, color: '#FFFFFF', o: ramp(t, tc + 0.8, 0.6) }));
-    const t0 = tc + 2.6;
-    return [ryanairLabel(alpha), ...systemShapes({
-      dx, over, alpha,
-      nodeO: () => 1, linkF: () => 1,
-      pulse: id => (t > t0 ? heartbeat(t, t0, id) : 0) * 0.9,
-    })];
+    over.push(text('Rival', [RIVAL.x, RIVAL.label], { size: 2.2, weight: 600, color: '#FFFFFF', o: alpha * ramp(t, tc + 0.8, 0.6) }));
+    return over;
   }
 
   // pulling an activity out
@@ -591,8 +615,8 @@ export function q6Scene(ctx) {
     if (b) return pulledAmount(b, b.rAt) * (1 - ramp(t, b.rAt, PULL.back));
     return 0;
   }
-  function pullDraw(t, dx0) {
-    const dx = mix(dx0, 0, ramp(t, 0, 1.0));
+  // dx: where the system sits (the caller slides it); extra: shapes drawn over it (the rival's copies fading)
+  function pullDraw(t, dx, extra = null) {
     sys.dx = dx;
     backs = backs.filter(b => t - b.rAt < 3);
     const events = [...(pull ? [{ ...pull, rAt: Infinity }] : []), ...backs];
@@ -651,7 +675,7 @@ export function q6Scene(ctx) {
     }
     lastPos = new Map(L.nodes.map(n => { const p = pos(n.id); return [n.id, { ...n, x: p[0], y: p[1] }]; }));
     return [ryanairLabel(1), ...systemShapes({
-      dx, under, over, stubs,
+      dx, under, over: extra ? over.concat(extra) : over, stubs,
       pos,
       nodeO: () => 1,
       linkF: k => { const s = linkStyle.get(k); return s?.hide ? 0 : s?.grow != null ? s.grow : 1; },
@@ -843,7 +867,10 @@ export function q6Scene(ctx) {
     })(),
   ];
   if (L) {
-    let fadeSat = false, skip = false, dx0 = 0, copyIn = false;
+    let fadeSat = false, skip = false, dx0 = 0;
+    let copy = { fadeIn: false, settled: false, ret: null, turn: false, under: null };
+    let pullIn = { turn: false, rival: false, under: null };
+    const RETURN_S = 1.05; // the copy after the pull: the pulled activity is home and relinked by then
     beats.push(
       {
         id: 'q6-system',
@@ -866,24 +893,45 @@ export function q6Scene(ctx) {
       {
         id: 'q6-copy',
         enter(instant) {
-          const from = setup('q6-copy', instant, sysSource);
+          const from = setup('q6-copy', instant, sysSource), came = instant ? null : ctx.fromBeat?.id;
           dx0 = SYSTEM_BEATS.has(from) ? sys.dx : COPY_DX;
-          // in stage 4 it follows Ryanair today (feasibility-ranking): the map was not on screen, so it fades in, in place
-          copyIn = !instant && !SYSTEM_BEATS.has(ctx.fromBeat?.id);
-          if (copyIn) dx0 = COPY_DX;
-          ctx.overlay.caption('');
+          copy = { fadeIn: false, settled: false, ret: null, turn: false, under: null };
+          if (came === 'q6-pull') { // stage 4, after the pull: the pulled activity goes back first, as the map slides
+            if (pull) backs = backs.filter(b => b.id !== pull.id).concat({ ...pull, rAt: lastT });
+            pull = null; copy.ret = lastT; dx0 = sys.dx;
+          } else if (came === 'feasibility-map') { copy.turn = true; dx0 = 0; } // stage 4 with the pull hidden
+          else if (came === 'feasibility-ranking') { // Left from Ryanair today: already made, fading in as the ranking goes
+            Object.assign(copy, { settled: true, fadeIn: true, under: ctx.fromBeat?.draw || null }); dx0 = COPY_DX;
+          } else if (!instant && !SYSTEM_BEATS.has(came)) { copy.fadeIn = true; dx0 = COPY_DX; } // the map wasn't on screen
+          ctx.overlay.caption(copy.settled ? 'Copying parts isn’t enough' : '');
         },
         tick(now) { if (tickT(now) > 4.2) ctx.overlay.caption('Copying parts isn’t enough'); },
-        draw: t => copyDraw(clock(t), dx0, copyIn),
+        draw: t => {
+          const c = clock(t);
+          const own = copy.ret != null && c < RETURN_S ? pullDraw(copy.ret + c, copyDx(c, dx0))
+            : copy.turn && c < MORPH_S ? turnDraw(c, copyDx(c, dx0)) : copyDraw(c, dx0, copy);
+          return copy.under && c < CARRY_S ? (fadeShapes(copy.under(1e6), 1 - ramp(c, 0, CARRY_S)) || []).concat(own) : own;
+        },
       },
       {
         id: 'q6-pull',
         enter(instant) {
-          const from = setup('q6-pull', instant, sysSource);
-          dx0 = SYSTEM_BEATS.has(from) ? sys.dx : 0;
-          pull = { id: DEFAULT_PULL, at: dx0 ? 1.7 : 1.0 }; backs = [];
+          setup('q6-pull', instant, sysSource);
+          const came = instant ? null : ctx.fromBeat?.id;
+          // stage 4: after the map, the big map turns into this one first; Left from the copy, the rival's copies fade
+          // as the map slides back; Left from Ryanair today (the copy hidden), the ranking fades out
+          pullIn = { turn: came === 'feasibility-map', rival: came === 'q6-copy',
+            under: came === 'feasibility-ranking' ? ctx.fromBeat?.draw || null : null };
+          dx0 = SYSTEM_BEATS.has(came) ? sys.dx : 0;
+          pull = { id: DEFAULT_PULL, at: dx0 || pullIn.turn ? 1.7 : 1.0 }; backs = [];
         },
-        draw: t => { lastT = clock(t); return pullDraw(lastT, dx0); },
+        draw: t => {
+          lastT = clock(t);
+          const dx = mix(dx0, 0, ramp(lastT, 0, 1.0));
+          const extra = pullIn.rival && lastT < 0.6 ? fadeShapes(rivalShapes(1e6, dx, -1e6), 1 - ramp(lastT, 0, 0.5)) : null;
+          const own = pullIn.turn && lastT < MORPH_S ? turnDraw(lastT, dx) : pullDraw(lastT, dx, extra);
+          return pullIn.under && lastT < CARRY_S ? (fadeShapes(pullIn.under(1e6), 1 - ramp(lastT, 0, CARRY_S)) || []).concat(own) : own;
+        },
         pointer: e => pullPointer(e),
       },
     );

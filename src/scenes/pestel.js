@@ -1,12 +1,17 @@
 // PESTEL: scan the environment (stage 2 of the roadmap). Changes in conditions move the bottlenecks.
-//   pestel-lenses      the six lenses: letter, word, one-line definition, an example
+//   pestel-lenses      the header alone on black (it picks up stage 1's last questions), then one lens per click:
+//                      P, E, S, T, E, L, each its letter, word and short definition (she speaks to the examples).
+//                      7 states, 6 clicks after entry (click or Space); Left takes the last lens away; back into it
+//                      from a later move (Left from the roadmap after the stage), all six. The stage's card pictures
+//                      all six. The only move stage 2 plays; the three below are hidden there.
 //   pestel-shifts      one real shift per lens: what changed, then who gained or which bottleneck moved.
 //                      Each click steps to the next letter; clicking a letter jumps to it.
 //   pestel-forces      the same six shifts on the five-forces cross (q2's): the forces a shift pushes turn amber and
 //                      their arrows grow or shrink. Illustrative. Same stepping.
 //   pestel-bottleneck  Deere's chain, farmer to data: the glow (where value is scarce) slides from the machine in 2000
 //                      to connectivity and data by 2026. A click (or Space) plays it. Illustrative.
-// Stills: ?beat=pestel-shifts&export=1&year=3 opens on the fourth letter (T); ?beat=pestel-bottleneck&export=1&year=2026.
+// Stills: ?beat=pestel-lenses&export=1&year=6 (all six; year=0 the header alone, year=k the first k lenses);
+//         ?beat=pestel-shifts&export=1&year=3 opens on the fourth letter (T); ?beat=pestel-bottleneck&export=1&year=2026.
 // Words and numbers live in src/concepts/pestel.js; drawing in src/concepts/pestelDraw.js.
 
 import { rect, poly, text, PAL } from '../concepts/kit.js';
@@ -18,11 +23,13 @@ import { LENSES, SHIFTS, PUSHES, FARM, STEP, SCARCE, stepIndex, stripXs, hitStri
 import { drawLenses, drawShift, drawStrip, drawForceHead, drawChain, mixHex, STRIP_SHIFTS, STRIP_FORCES } from '../concepts/pestelDraw.js';
 
 const TITLE = {
-  lenses: 'What is changing in the world around the industry?',
+  // her words: what forces can affect the structure of competition, in industries or ecosystems (one line on screen)
+  lenses: 'What forces change the structure of competition, in industries or ecosystems?',
   shifts: 'When conditions change, who gains and who loses?',
   forces: 'Which forces does a change push?',
   bottleneck: 'Where is value scarce?',
 };
+export const LENSES_TITLE = TITLE.lenses;
 const SRC_FORCES = 'Illustrative. Which forces each change pushes, and how far, is teaching judgment.';
 const SRC_CHAIN = 'Illustrative.';
 const CAPTION = 'Conditions change where value is scarce';
@@ -40,6 +47,31 @@ export function pestelScene(ctx) {
     go(ctx, SHOTS.flat, 900, ctx.instant);
   }
   const now = () => (performance.now() - ctx.t0) / 1000; // the beat clock, as draw(t) sees it
+
+  // ---- move 1: the lenses, one per click ----
+  // Back into a move from one after it (Left from the next move, or from the roadmap after the stage): it is finished.
+  function cameBack(move) {
+    const d = ctx.director;
+    if (!d || !ctx.fromBeat) return false;
+    const st = d.state(), sc = d.scenes[st.scene];
+    if (ctx.prevScene && ctx.prevScene !== sc) return d.scenes.indexOf(ctx.prevScene) > st.scene;
+    const here = sc.beats.indexOf(move), from = sc.beats.indexOf(ctx.fromBeat);
+    return here >= 0 && from > here;
+  }
+  let lensClock = 0;
+  const lenses = {
+    id: 'pestel-lenses',
+    timelapse: { from: 0, to: LENSES.length, secondsPerYear: 1.0, clickSteps: true, spaceSteps: true },
+    tile: { year: LENSES.length }, // the stage's card: all six
+    enter() {
+      setup(TITLE.lenses, '');
+      if (cameBack(lenses)) ctx.director.setYear(LENSES.length);
+      lensClock = ctx.director?.year() ?? 0;
+    },
+    frame(c) { lensClock = c; },
+    // settled at once after an instant entry (a still, a zoom from the card: t is huge); otherwise it fades in
+    draw: t => drawLenses(lensClock, ramp(t, 0, 0.6)),
+  };
 
   // Which letter is showing, and since when (for its build). After an instant entry (export stills, a zoom-in from
   // a tile) the first letter shown starts settled; later letters build as they arrive.
@@ -137,11 +169,7 @@ export function pestelScene(ctx) {
   return {
     id: 'pestel',
     beats: [
-      {
-        id: 'pestel-lenses',
-        enter() { setup(TITLE.lenses, ''); },
-        draw: drawLenses,
-      },
+      lenses,
       {
         id: 'pestel-shifts',
         timelapse: STEPS,

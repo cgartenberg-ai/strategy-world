@@ -44,6 +44,20 @@
     ["fees", "playoff"], ["fees", "first"], ["playoff", "leisure"], ["leisure", "monitor"]
   ],
   "build": ["hubs", "hublinks", "frills", "lean", "fares"],
+  "launch_note": "Stage 4 opens with Ryanair at launch (1986, the failed launch; src/scenes/feasibility.js): its four pillars, in the order they appear, each on the spot of the relaunch pillar that replaced it (at), then the three links that clash. why: what she says to each (not on screen); word: a short word that can go on the link (off: CLASH_WORDS in feasibility.js).",
+  "launch": {
+    "pillars": [
+      {"id": "service", "label": "High service", "at": "frills"},
+      {"id": "lowfares", "label": "Low fares", "at": "fares"},
+      {"id": "busy", "label": "Busy routes", "at": "markets"},
+      {"id": "sameops", "label": "Same operations as rivals", "at": "lean"}
+    ],
+    "clashes": [
+      {"a": "lowfares", "b": "service", "why": "Low fares can't pay for high service", "word": "Can't afford"},
+      {"a": "busy", "b": "lowfares", "why": "On busy routes the incumbents fight back", "word": "Fight back"},
+      {"a": "sameops", "b": "lowfares", "why": "The same operations as rivals give no cost advantage", "word": "No cost edge"}
+    ]
+  },
   "steps_note": "The stage-4 reveal (src/scenes/feasibility.js), one click per slide of hers (SMBC deck pp. 58-62): what each adds. Bubbles come in the order listed; a link draws once both its bubbles are up. Together the steps hold every link above.",
   "steps": [
     {"slide": 58, "nodes": ["fares", "frills", "markets", "lean"], "links": []},

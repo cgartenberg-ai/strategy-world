@@ -29,6 +29,13 @@ export function barSwings(q2) {
   });
 }
 
+// Q2's swings screen: the whiskers sit on the sorted FY2021–25 bars themselves (centred on each bar, which does not
+// move), ±1 SD of the same firms' yearly average over 2001–25 (barSwings' sd).
+export function barWhiskers(q2) {
+  const B = barSwings(q2);
+  return q2.industries.map((ind, k) => (B[k] && ind.mean_of_means != null ? { m: ind.mean_of_means, sd: B[k].sd } : null));
+}
+
 // The axis range that holds every whisker: the bars' own range, widened in `step`s where a whisker needs it.
 export function swingRange(stats, base = [-0.10, 0.15], step = 0.05) {
   const S = stats.filter(Boolean);

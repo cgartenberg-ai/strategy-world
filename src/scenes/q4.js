@@ -28,7 +28,7 @@ const PHOTOS = {
 const FROM = 2000, TO = 2026;
 // q4-grow: the click that brings it plays 2000 → 2026 straight through, the same time for every year (2 partners
 // in 2000, 9 in 2020, 36 by 2026: the late rush is the story)
-export const RUN_S = 20;
+export const RUN_S = 9; // the whole run, 2000 → 2026, annual steps (20 s dragged in rehearsal)
 // first a moment on 2000, so the count's "2" registers before the first arrival (the clock starts LEAD_Y early)
 export const LEAD_S = 1.0;
 const PER_YEAR_S = RUN_S / (TO - FROM), LEAD_Y = LEAD_S / PER_YEAR_S;

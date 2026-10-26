@@ -15,9 +15,11 @@ export const TITLES = {
   q2why: 'Why are some industries so much more profitable than others?',
   q3why: 'Why do firms in the same industry perform so differently?',
   q6why: 'Why is superior performance so hard to reproduce—even within the same company?', // (no longer shown)
-  // her Test 2 question (SMBC deck p. 54): the header of every roadmap stage-4 screen, Ryanair's activity system
+  // her Test 2 question (SMBC deck p. 54), in full (no longer shown: stage 4 is headed by the short one below)
   test2: 'Is my competitive position realized via a feasible, unique, and internally complementary system of activities '
     + 'that turn it from aspiration to reality?',
+  // the header of every roadmap stage-4 screen (Ryanair's activity system: src/scenes/feasibility.js, q6.js)
+  feasibility: 'Do your activities deliver the position, and reinforce each other?',
   q7why: 'How long can an advantage last—and what makes it unravel?',
   q5: 'Who captures the value when everyone contributes to creating it?',
   end: 'What must we understand before we can advise a client on a strategic choice?',

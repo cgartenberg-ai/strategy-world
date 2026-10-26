@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Strategy world: every section</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html, body { margin: 0; background: #000; }</style>
+<!-- A link straight to the chooser (the sorter, "All" in the bar): every section and move at a glance; click one to go
+     there. Anything after a ? is passed on, e.g. /all/?show=1. -->
+<script>
+  const q = location.search ? '&' + location.search.slice(1) : '';
+  location.replace('../?all=1' + q);
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=../?all=1"></noscript>
