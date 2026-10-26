@@ -9,6 +9,16 @@ import { MODULES } from './flow/modules.js';
 // What each tile turns into when the master view flips to its takeaways: the item's punchline ('' = none).
 export const hubBacks = (items, modules = MODULES) => items.map(it => modules[it.id]?.insight || '');
 const flippedViews = new Set(); // master views showing their takeaways (kept while you come and go)
+const autoFlipped = new Set(); // ...of those, the ones that turned by themselves (only the final showing keeps them)
+
+// Whether a master view comes up on its takeaways (`now`) or turns to them a beat later (`later`). A flip by hand
+// (the Takeaways button) sticks; the final showing's own flip belongs to that showing, so Left to an earlier one
+// brings the questions back. st = {flipped, auto}: sets of master-view ids.
+export function flipOnShow(st, key, autoFlip) {
+  if (!autoFlip && st.auto.has(key)) { st.auto.delete(key); st.flipped.delete(key); }
+  const now = st.flipped.has(key);
+  return { now, later: !now && !!autoFlip };
+}
 
 // Tiles in stage fractions {x, y, w, h}; each is a 16:9 picture of the stage (so w equals h as fractions).
 // Up to four in a row; seven sit four over three. Room is left under each tile for its label.
@@ -62,7 +72,7 @@ export function createHubLayer(stage) {
   // items [{label, thumb, back}]; next = index to highlight (-1 none); visited = Set of indexes; from = index of the
   // item we are zooming out of (its tile starts full-screen and shrinks into place), or null; row = one line;
   // key = the master view's id. Items with a `back` (a takeaway) get a Takeaways button that flips every tile.
-  let shownKey = null;
+  let shownKey = null, autoTimer = null;
   function setFlipped(on, animate = true) {
     if (!shownKey) return;
     if (on) flippedViews.add(shownKey); else flippedViews.delete(shownKey);
@@ -74,7 +84,8 @@ export function createHubLayer(stage) {
     const b = el.querySelector('.hub-flip');
     if (b) b.textContent = on ? 'Questions' : 'Takeaways';
   }
-  function toggleBacks() { if (el.querySelector('.hub-flip')) setFlipped(!flippedViews.has(shownKey)); }
+  // a flip by hand (the Takeaways button) sticks, even after the final showing's own flip
+  function toggleBacks() { if (el.querySelector('.hub-flip')) { autoFlipped.delete(shownKey); setFlipped(!flippedViews.has(shownKey)); } }
   // cards: items carry {card: {n, text}} and show as numbered text cards with arrows between; groups: brackets
   // under them [{label, from, to, color}]; reveal(c) shows a build in progress (see hubReveal).
   let extras = { arrows: [], groups: [] }, groupSpec = [];
@@ -89,7 +100,7 @@ export function createHubLayer(stage) {
     extras.tests.forEach((g, i) => { g.style.opacity = String(r.groups[i]); });
   }
   function show({ items, next = -1, visited = new Set(), from = null, onPick, row = false, key = null, cards = false,
-    groups = [], build = null }) {
+    groups = [], build = null , autoFlip = false}) {
     clear();
     shownKey = key;
     const withTests = cards && groups.some(g => g.question);
@@ -174,7 +185,12 @@ export function createHubLayer(stage) {
       b.textContent = 'Takeaways';
       b.addEventListener('click', toggleBacks);
       el.append(b);
-      if (flippedViews.has(key)) setFlipped(true, false);
+      // autoFlip (the six questions' final showing): the cards turn to their takeaways by themselves, a beat after
+      // the view comes up, so the room sees the questions first
+      clearTimeout(autoTimer);
+      const f = flipOnShow({ flipped: flippedViews, auto: autoFlipped }, key, autoFlip);
+      if (f.now) setFlipped(true, false);
+      else if (f.later) autoTimer = setTimeout(() => { if (shownKey === key) { setFlipped(true); autoFlipped.add(key); } }, 1100);
     }
     if (from != null && tiles[from]) { // zoom out: the item we were in shrinks back into its tile
       const { t, r } = tiles[from];
@@ -243,6 +259,7 @@ export function hubMove(ctx, { id, title, items, k, thumbs = {} }) {
         card: spec.cards ? { n: i + 1, text: it.title, flipTo: spec.flip ? thumbs[it.id] || spec.thumbs?.[it.id] : null } : null })),
         next: k < items.length ? k : -1, visited, from, row: spec.layout === 'row', key: id,
         cards: !!spec.cards, groups: spec.groups || [], build: spec.build ? 0 : null,
+        autoFlip: !!spec.takeawaysAtEnd && k >= items.length, // the final showing turns to the takeaways by itself
         onPick: spec.flip ? i => ctx.hubLayer.flipCard(i) : i => ctx.goToModule(items[i].id) });
     },
   };

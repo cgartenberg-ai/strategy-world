@@ -9,6 +9,7 @@
 //   hub.cards   true = big numbered text cards (the item titles) instead of pictures
 //   hub.groups  brackets under the cards: [{label, from, to, color}] (tile indexes, inclusive)
 //   hub.preview true = shown once, nothing to step through; hub.build true = each click adds the next card
+//   hub.takeawaysAtEnd true = on its final showing (after the last item) the tiles flip to their takeaways by themselves
 
 const pics = ids => Object.fromEntries(ids.map(id => [id, `assets/views/${id}.png`]));
 const QS = ['q1', 'q2', 'q3', 'q4', 'q6', 'q7']; // six questions (q6, q7 shown as Q5, Q6)
@@ -25,7 +26,7 @@ const TEST_GROUPS = [
 const STAGES = ['stage-industry', 'stage-environment', 'stage-position', 'stage-feasibility', 'stage-dynamics'];
 
 export const VIEWS = {
-  questions: { title: 'The strategy landscape', hub: { items: QS, thumbs: pics(QS) } },
+  questions: { title: 'The strategy landscape', hub: { items: QS, thumbs: pics(QS), takeawaysAtEnd: true } },
   'three-tests': { title: 'Three tests', hub: { items: TESTS, thumbs: pics(TESTS) } },
 
   // the tests' detail views (src/scenes/tests.js)
