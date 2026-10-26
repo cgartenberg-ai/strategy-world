@@ -11,7 +11,7 @@ import { TITLES, SOURCES, pinLabels, go, dur, sectorLegend } from './common.js';
 import { hexToRgb, PLATE_HEX } from '../colors.js';
 import { ramp } from '../anim.js';
 import { bandRows, fitRows, textEm } from '../labelfit.js';
-import { swingStats, swingRange } from '../concepts/swings.js';
+import { barSwings, swingRange } from '../concepts/swings.js';
 import { line, text, PAL } from '../concepts/kit.js';
 import { roaToY, yTransform } from '../layouts.js';
 
@@ -63,13 +63,14 @@ export function q2Scene(ctx) {
 
   const hiddenFlat = new Map([...V.F.agents].map(([id, a]) => [id, { ...a, alpha: 0 }]));
 
-  // ---- q2-swings: each industry's 2001–25 average (the bar) and swing (±1 SD of its yearly average) ----
-  const SW = swingStats(q2), SW_RANGE = swingRange(SW), SWT = yTransform(SW_RANGE[0], SW_RANGE[1]);
+  // ---- q2-swings: each industry's 2001–25 bar, built like the FY2021–25 bar, and its swing (±1 SD of the same
+  // firms' yearly average): like for like, so the bars move only because the years change ----
+  const SW = barSwings(q2), SW_RANGE = swingRange(SW), SWT = yTransform(SW_RANGE[0], SW_RANGE[1]);
   const SW_TICKS = [];
   for (let v = SW_RANGE[0]; v <= SW_RANGE[1] + 1e-9; v += 0.05) SW_TICKS.push(Math.round(v * 100) / 100);
   const SWING_PLATES = V.F.plates.map((p, k) => (SW[k] ? { ...p, top: roaToY(SW[k].m).y } : p));
-  const SWING_SOURCE = 'Source: Compustat via WRDS. Bars: average operating return on assets of each industry\u2019s firms, '
-    + '2001–25; whiskers: ±1 standard deviation of the yearly industry average, 2001–25.';
+  const SWING_SOURCE = 'Source: Compustat via WRDS. Bars: average of each firm\u2019s operating return on assets, 2001–25, '
+    + 'as for FY2021–25; whiskers: ±1 standard deviation of those firms\u2019 yearly average.';
   const SWING = { glide: 1.6, grow: 1.8, span: 0.9, w: 0.45 }; // s: bars glide, whiskers start, grow; whisker width U
   const KEY = { words: '2001–2025: average and swings', size: 2.4, x: 7.33, y: 3.28 }; // right edge; the sector key's row
   const whisker = (x, lo, hi, cap, o) => [line([x, lo], [x, hi], { color: PAL.white, w: SWING.w, o }),

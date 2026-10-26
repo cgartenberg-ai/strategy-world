@@ -17,6 +17,18 @@ export function swingStats(q2, [y0, y1] = SWING_YEARS) {
   });
 }
 
+// Q2's swings screen, like for like: each industry's 2001–25 bar built exactly like its FY2021–25 bar (each firm's
+// mean, then the mean of those firms; q2q3_landscape.json `long_run`), with the same firms' yearly swing as sd.
+// Without `long_run` it falls back to swingStats. q2-shifts' end view keeps swingStats: its bars are yearly averages.
+export function barSwings(q2) {
+  const lr = q2.long_run;
+  if (!lr) return swingStats(q2);
+  return q2.industries.map(ind => {
+    const m = lr.industries?.[ind.industry], sd = lr.sd?.[ind.industry];
+    return m == null || sd == null ? null : { m, sd };
+  });
+}
+
 // The axis range that holds every whisker: the bars' own range, widened in `step`s where a whisker needs it.
 export function swingRange(stats, base = [-0.10, 0.15], step = 0.05) {
   const S = stats.filter(Boolean);
