@@ -8,7 +8,8 @@
 // The two runs start by themselves (after a moment on 2010): a click mid-run finishes it, the next click moves on;
 // Left back into a run (or into the collapse) finds it finished.
 // Also built, hidden in the module (src/flow/modules.js): the 1975 run (q7-start, q7-collapse-1975, q7-trace-1975),
-// whose scatter moves while its dots trace. q7-all (every start year together) plays under Stages.
+// whose scatter moves while its dots trace. q7-all (every start year together) is listed in roadmap stage 5, hidden
+// (src/flow/views.js), so it plays nowhere for now.
 
 import { cohortAt, COHORT_LOOK, traceAt, collapseAt, cohortMedian, roaToY, Q7_IDS, AGG_SIZE, FRAME } from '../layouts.js';
 import { SHOTS } from '../rigmath.js';

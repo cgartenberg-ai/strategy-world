@@ -13,10 +13,12 @@ import { text, line, rect, circle, PAL, wrap } from '../concepts/kit.js';
 import { coalition, stack, captureOrder } from '../concepts/valuecapture.js';
 
 const UW = 0.09; // world units per U (the stage is 9 units = 100 U tall)
-const GREY = '#8A8A8A', EDGE = '#8A8A8A', SOFT = '#BDBDBD';
+const GREY = '#8A8A8A', EDGE = '#8A8A8A'; // lines and greyed bands only: words stay white
+const WA = 2.0; // the walk-away line's size (U)
 
 // Her circles: dark fill, bright outline. Slots go counter-clockwise from the right (60° apart).
-const LOOK = {
+// Words are white or a participant's band colour, never grey (tests/q5.test.js).
+export const LOOK = {
   deere: { fill: '#063D58', stroke: '#66D5E5', band: PAL.deere, name: 'Deere', one: 'Deere' },
   farmer: { fill: '#0B3A24', stroke: '#22C28E', band: '#22C28E', name: 'Farmer', one: 'Farmer', slot: 0, side: 'right' },
   dealers: { fill: '#2B2416', stroke: PAL.amber, band: PAL.amber, name: 'Independent\ndealers', one: 'Independent dealers', slot: 1, side: 'above' },
@@ -30,7 +32,7 @@ const ORDER = ['farmer', 'software', 'deere', 'dealers', 'ai'];        // the st
 
 // The coalition big and centred (first beat), then small on the left beside the stick.
 const BIG = { cx: 0, cy: -0.3, R: 2.45, rc: 0.95, r: 0.56, size: 2.2, deere: 2.8 };
-const SMALL = { cx: -3.9, cy: -0.4, R: 1.85, rc: 0.66, r: 0.42, size: 1.75, deere: 2.1 };
+const SMALL = { cx: -3.9, cy: -0.4, R: 1.85, rc: 0.66, r: 0.42, size: 2.0, deere: 2.1 };
 const lerpL = (A, B, f) => Object.fromEntries(Object.keys(A).map(k => [k, mix(A[k], B[k], f)]));
 
 // The stick: value created for the farmer (100 value units) and the slot its added value moves to.
@@ -123,14 +125,15 @@ function hexagon(L, { spoke = () => 1, pop = () => 1, ring = 1, names = 1, out =
     if (!skip.has(k)) S.push(...disc(n, n.r * p, lk, fade * dim(k), 0.45));
     if (names > 0) {
       const lab = nameAt(n, lk.side, L.size, lines(lk.name));
-      S.push(text(lk.name, lab.at, { anchor: lab.anchor, size: L.size, o: names * fade * dim(k) * Math.min(1, p) }));
+      // a walked-away name stays white (a dimmed one reads grey); its circle and lines dim instead
+      S.push(text(lk.name, lab.at, { anchor: lab.anchor, size: L.size, o: names * fade * Math.min(1, p) }));
     }
   });
   const pc = pop(-1);
   if (pc > 0 && !skip.has('deere')) {
     const lk = LOOK.deere, od = fade * dim('deere');
     S.push(...disc(C, C.r * pc, lk, od, 0.5),
-      text('Deere', [C.x, C.y], { size: L.deere, weight: 600, color: PAL.deere, o: od * Math.min(1, pc * 1.5) }));
+      text('Deere', [C.x, C.y], { size: L.deere, weight: 600, color: PAL.deere, o: fade * Math.min(1, pc * 1.5) }));
   }
   return S;
 }
@@ -193,8 +196,8 @@ export function q5Scene(ctx) {
         const repC = mixHex(lk.band, GREY, f.g);
         if (b.rep[1] - b.rep[0] > 1e-6) {
           shapes.push(rect([x0, sy(b.rep[0])], [x1, sy(b.rep[1])], { fill: repC, fo: mix(0.42, 0.36, f.g), stroke: repC, w: 0.12 }));
-          if ((b.rep[1] - b.rep[0]) * ST.h / 100 > 0.22) // "others step in", once it has greyed
-            top.push(text('Others step in', [(x0 + x1) / 2, sy((b.rep[0] + b.rep[1]) / 2)], { size: 1.4, color: '#E6E6E6', o: f.l }));
+          if ((b.rep[1] - b.rep[0]) * ST.h / 100 > 0.26) // "others step in", once it has greyed
+            top.push(text('Others step in', [(x0 + x1) / 2, sy((b.rep[0] + b.rep[1]) / 2)], { size: 2.0, o: f.l }));
         }
         // the irreplaceable part: slides out of the stick, then rises to the gap it leaves at the top
         const hgt = (p.added * ST.h) / 100, ylo = mix(sy(b.lo), sy(S0.full - p.added), f.sr), dx = (xp - x0) * f.sx;
@@ -204,14 +207,14 @@ export function q5Scene(ctx) {
           const ym = ylo + Math.max(hgt, 0.035) / 2, lx = xp + wPiece + 0.22;
           const wa = wrap(p.walkAway, 24);
           top.push(text('Added value', [lx, ym], { anchor: 'start', size: 2.1, weight: 500, color: lk.band, o: f.l }),
-            text(wa, [lx, ym - 0.32 - ((lines(wa) - 1) * 1.5 * 1.18 * UW) / 2], { anchor: 'start', size: 1.5, color: SOFT, o: f.l }));
+            text(wa, [lx, ym - 0.38 - ((lines(wa) - 1) * WA * 1.18 * UW) / 2], { anchor: 'start', size: WA, o: f.l }));
         }
         ghost = Math.max(ghost, f.drop);
       }
-      if (nameO > 0.003 && b.hi - b.lo > 4) top.push(text(lk.one, [(x0 + x1) / 2, sy((b.lo + b.hi) / 2)], { size: 1.6, o: nameO }));
+      if (nameO > 0.003 && b.hi - b.lo > 4) top.push(text(lk.one, [(x0 + x1) / 2, sy((b.lo + b.hi) / 2)], { size: 1.9, o: nameO }));
     });
     if (ghost > 0) top.push(line([x0 - 0.1, sy(S0.full)], [xp + wPiece + 0.1, sy(S0.full)], { color: '#FFFFFF', w: 0.18, o: 0.7 * ghost, dash: [0.8, 0.6] }));
-    top.push(text('Value created for the farmer', [(x0 + x1) / 2, sy(S0.full) + 0.3], { size: 1.9, o: labelO * Math.min(1, rise(parts.length - 1)) }));
+    top.push(text('Value created for the farmer', [(x0 + x1) / 2, sy(S0.full) + 0.32], { size: 2.0, o: labelO * Math.min(1, rise(parts.length - 1)) }));
     return shapes.concat(top);
   }
 
@@ -316,7 +319,7 @@ export function q5Scene(ctx) {
         const n = N[p.key], ew = ease.inOutCubic(walk(ci)), fx = mix(n.x, cx, ew), fyy = mix(n.y, COL.base - 0.38, ew), fr = mix(n.r, 0.2, ew);
         top.push(circle([fx, fyy], { rw: fr, fill: lk.fill, fo: 1, stroke: lk.stroke, w: 0.4, glow: true }));
         if (p.key === 'deere') top.push(text('Deere', [fx, fyy], { size: mix(SMALL.deere, 1.1, ew), weight: 600, color: PAL.deere, o: 1 - ew }));
-        top.push(text(lk.one, [cx, COL.base - 0.85], { size: 1.7, o: ramp(t, T0 + 1.2 + 0.1 * ci, 0.6) }));
+        top.push(text(lk.one, [cx, COL.base - 0.85], { size: 2.0, o: ramp(t, T0 + 1.2 + 0.1 * ci, 0.6) }));
       });
       const xa = COL.x[0] - COL.w / 2 - 0.2, xb = COL.x[COL.x.length - 1] + COL.w / 2 + 0.2;
       shapes.unshift(line([xa, COL.base], [xb, COL.base], { color: GREY, w: 0.16, o: 0.6 * ramp(t, T0 + 1.2, 0.6) }));
@@ -325,7 +328,7 @@ export function q5Scene(ctx) {
         const f0 = capture[0], fx0 = COL.x[0] - COL.w / 2 - 0.25;
         top.push(text('Can capture\nup to', [fx0, COL.base + (f0.added * COL.scale) / 2], { anchor: 'end', size: 2.1, weight: 500, o: lo }));
         const z = capture[capture.length - 1], zx = COL.x[capture.length - 1] + COL.w / 2 + 0.25;
-        top.push(text('Others step in', [zx, COL.base + ((z.added + z.brings) / 2) * COL.scale], { anchor: 'start', size: 1.6, color: SOFT, o: lo }));
+        top.push(text('Others step in', [zx, COL.base + ((z.added + z.brings) / 2) * COL.scale], { anchor: 'start', size: 2.0, o: lo }));
       }
       return shapes.concat(top);
     },

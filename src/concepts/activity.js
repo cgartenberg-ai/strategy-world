@@ -81,6 +81,55 @@ export function linkProgress(s, k, t, dur = s.linkDur ?? 0.45) {
   return Math.max(0, Math.min(1, (t - t0) / dur));
 }
 
+// ---------------- the stage-4 reveal: one click per slide ----------------
+// steps (ryanair.json): [{nodes, links}], what each of her slides adds. Step 0 is on screen from the start; step k
+// comes in while the click clock runs from k - 1 to k. Within a step (u = 0..1 of the clock): its bubbles fade and
+// grow in, in the order listed, over the first nodeSpan; a link starts drawing linkLag after the later of its new
+// bubbles (links between bubbles already up draw in turn over linkSpan, or with the bubbles if there are any).
+// A link waits for its bubbles even if listed earlier; a link or bubble no step lists comes with the last step.
+export const STEP_TIMING = { nodeSpan: 0.55, nodeDur: 0.3, linkLag: 0.15, linkDur: 0.3, linkSpan: 0.6, oldLinksAt: 0.4 };
+const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+export function stepPlan(g, steps, T = STEP_TIMING) {
+  const last = steps.length - 1;
+  const nodeStep = new Map(), nodeU = new Map();
+  steps.forEach((s, k) => (s.nodes || []).forEach((id, i, all) => {
+    if (!g.byId.has(id) || nodeStep.has(id)) return;
+    nodeStep.set(id, k);
+    nodeU.set(id, k && all.length > 1 ? (T.nodeSpan * i) / (all.length - 1) : 0);
+  }));
+  for (const n of g.nodes) if (!nodeStep.has(n.id)) { nodeStep.set(n.id, last); nodeU.set(n.id, T.nodeSpan); }
+  const listed = new Map();
+  steps.forEach((s, k) => (s.links || []).forEach(([a, b]) => { if (!listed.has(pairKey(a, b))) listed.set(pairKey(a, b), k); }));
+  const linkStep = g.links.map(l => Math.max(listed.get(pairKey(l.a, l.b)) ?? last, nodeStep.get(l.a), nodeStep.get(l.b)));
+  const linkU = g.links.map(() => 0);
+  for (let k = 1; k <= last; k++) {
+    const mine = g.links.map((l, j) => j).filter(j => linkStep[j] === k);
+    const old = mine.filter(j => nodeStep.get(g.links[j].a) < k && nodeStep.get(g.links[j].b) < k);
+    const hasNew = [...nodeStep.values()].some(s => s === k);
+    for (const j of mine) {
+      const l = g.links[j], fresh = [l.a, l.b].filter(id => nodeStep.get(id) === k).map(id => nodeU.get(id) + T.linkLag);
+      if (fresh.length) linkU[j] = Math.max(...fresh);
+      else linkU[j] = hasNew ? T.oldLinksAt : old.length > 1 ? (T.linkSpan * old.indexOf(j)) / (old.length - 1) : 0;
+    }
+  }
+  return { steps: steps.length, nodeStep, nodeU, linkStep, linkU, T };
+}
+
+// The map at click clock c: each bubble's opacity o and growth (0..1), each link's drawn fraction (0..1).
+// At a whole number c it is exactly that slide: what it shows is all there, nothing later is.
+export function stepState(plan, c) {
+  const T = plan.T, f = (step, u0, dur) => (step === 0 ? 1 : Math.max(0, Math.min(1, (c - (step - 1) - u0) / dur)));
+  const inOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2), out4 = t => 1 - Math.pow(1 - t, 4);
+  const node = new Map();
+  for (const [id, s] of plan.nodeStep) {
+    const p = f(s, plan.nodeU.get(id), T.nodeDur);
+    node.set(id, { o: inOut(p), grow: out4(p), p });
+  }
+  const link = plan.linkStep.map((s, j) => { const p = f(s, plan.linkU[j], T.linkDur); return p > 0 && p < 1 ? inOut(p) : p; });
+  return { node, link };
+}
+
 // ---------------- labels in ovals ----------------
 // Helvetica advance widths (per 1000 em), close enough to Helvetica Neue for sizing ovals.
 const W = { ' ': 278, ',': 278, '.': 278, '-': 333, '+': 584, i: 222, j: 222, l: 222, f: 278, t: 278, r: 333,
@@ -91,12 +140,12 @@ export function textWidth(t, size, bold = false) {
   return (em / 1000) * size * U * (bold ? 1.07 : 1) * 1.04;
 }
 
-// Smallest oval (rx = aspect * ry) holding the wrapped label, trying a few wrap widths.
-export function fitOval(label, { size = 1.15, bold = false, aspect = 1.5, pad = 0.12, minRy = 0.2, widths = null } = {}) {
+// Smallest oval (rx = aspect * ry) holding the wrapped label, trying a few wrap widths (or the lines given in `text`).
+export function fitOval(label, { size = 1.15, bold = false, aspect = 1.5, pad = 0.12, minRy = 0.2, widths = null, text: given = null } = {}) {
   const lh = 1.18 * size * U, half = 0.4 * size * U; // line pitch; half a glyph's height
   let best = null;
-  for (const wAt of widths || [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 22]) {
-    const text = wrap(label, wAt), lines = text.split('\n'), n = lines.length;
+  for (const wAt of given ? [0] : widths || [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 22]) {
+    const text = given || wrap(label, wAt), lines = text.split('\n'), n = lines.length;
     let ry = 0;
     lines.forEach((l, i) => {
       const dx = textWidth(l, size, bold) / 2, dy = Math.abs(i - (n - 1) / 2) * lh + half;
@@ -110,7 +159,27 @@ export function fitOval(label, { size = 1.15, bold = false, aspect = 1.5, pad = 
 }
 
 // Where the system sits in the frame: x = (sx - 0.5) * sx + ox, y = (0.5 - sy) * sy + oy, from her slide.
-export const SYSTEM = { sx: 15, sy: 9.0, ox: -0.35, oy: -0.2, hubSize: 1.6, actSize: 1.3 };
+// Q5's old system moves (q6-system ... q6-pull) use this: small, with room at the sides for the rival and a pulled
+// activity. aspect, hubAspect: the ovals' width over height.
+export const SYSTEM = { sx: 15, sy: 9.0, ox: -0.35, oy: -0.2, hubSize: 1.75, actSize: 1.5, aspect: 1.5, hubAspect: 1.3 };
+
+// The stage-4 reveal (src/scenes/feasibility.js): the same map, stretched across the stage under the two-line header,
+// with bigger words in flatter ovals. wrap: hand-set line breaks; nudge: [dx, dy] in frame units off her slide's
+// place, where bigger bubbles would touch (every bubble stays on the same side of the others as on her slide).
+export const BUILD = {
+  sx: 21.6, sy: 8.6, ox: -0.37, oy: -0.32, hubSize: 2.4, actSize: 2.0, aspect: 2.15, hubAspect: 1.45,
+  wrap: {
+    seats: 'No seat\nassignments', meals: 'No meals', dutyfree: 'Duty free', ads: 'Seat-back\nadvertising',
+    lowit: 'Low IT\ninvestment', nobags: 'No baggage\ntransfer', incent: 'Employee\nincentives',
+    maxseat: 'Max seating\nconfig', extras: 'Charge for\nadditional services', unions: 'No unions',
+    fleet: 'Standardized\nfleet of 737s', bulk: 'Bulk aircraft\npurchases', ground: 'Outsource\nground ops',
+    p2p: 'Point-to-point\nshort haul (no hub)', turn: '25-minute gate\nturnaround', single: 'Single class\nfares',
+    monitor: 'Active price\nmonitoring', leisure: 'Focus on price-sensitive\nleisure travel',
+    playoff: 'Play airports and\ncities off each other', fees: 'Negotiate low landing\nand other fees',
+    first: 'Enter first on routes\n(preempt competition)', bridges: 'No air\nbridges',
+  },
+  nudge: { monitor: [0, 0.15], leisure: [0, 0.12], maxseat: [0, 0.12], markets: [0, 0.22], first: [0, -0.15] },
+};
 
 // Hand-set wraps where her slide breaks lines better than a greedy wrap would.
 const WRAP = {
@@ -123,14 +192,14 @@ const WRAP = {
 export function layoutSystem(ry, opts = {}) {
   const S = { ...SYSTEM, ...opts };
   const g = buildGraph(ry);
+  const wraps = { ...WRAP, ...(S.wrap || {}) }, nudge = S.nudge || {};
   const nodes = g.nodes.map(n => {
-    const size = n.hub ? S.hubSize : S.actSize;
-    const fixed = WRAP[n.id];
-    const o = fixed
-      ? fitOval(fixed.replace(/\n/g, ' '), { size, bold: n.hub, aspect: 1.3, widths: [Math.max(...fixed.split('\n').map(l => l.length))] })
-      : fitOval(n.label, { size, bold: n.hub, aspect: n.hub ? 1.3 : 1.5 });
-    return { ...n, ...o, text: fixed || o.text, size,
-      x: (n.x - 0.5) * S.sx + S.ox, y: (0.5 - n.y) * S.sy + S.oy, sx: n.x, sy: n.y };
+    const size = n.hub ? S.hubSize : S.actSize, aspect = n.hub ? S.hubAspect : S.aspect;
+    const fixed = wraps[n.id];
+    const o = fitOval(n.label, { size, bold: n.hub, aspect, text: fixed || null });
+    const [dx, dy] = nudge[n.id] || [0, 0];
+    return { ...n, ...o, size,
+      x: (n.x - 0.5) * S.sx + S.ox + dx, y: (0.5 - n.y) * S.sy + S.oy + dy, sx: n.x, sy: n.y };
   });
   const byId = new Map(nodes.map(n => [n.id, n]));
   const xs = nodes.map(n => [n.x - n.rx, n.x + n.rx]).flat(), ys = nodes.map(n => [n.y - n.ry, n.y + n.ry]).flat();

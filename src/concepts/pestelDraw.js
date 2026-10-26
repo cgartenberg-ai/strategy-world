@@ -26,17 +26,16 @@ function topText(s, [x, y], size, o = {}) {
 }
 
 // ---------------- move 1: the six lenses ----------------
-export const LENS_COLS = { x0: -6.25, dx: 2.5, letterY: 0.95, wordY: -0.3, defY: -0.9, ruleY: -1.85, exY: -2.25 };
+// Letters, words and definitions only, big and white: she speaks to the examples (LENSES keeps them).
+export const LENS_COLS = { x0: -6.25, dx: 2.5, letterY: 0.8, wordY: -0.45, defY: -1.1, defSize: 2.8, defWrap: 16 };
 export function drawLenses(t) {
   const out = [], C = LENS_COLS;
   LENSES.forEach((l, i) => {
     const x = C.x0 + C.dx * i, s = 0.25 + 0.3 * i;
-    const a = ramp(t, s, 0.55), w = ramp(t, s + 0.25, 0.5), d = ramp(t, s + 0.4, 0.5), e = ramp(t, 2.5 + 0.12 * i, 0.6);
+    const a = ramp(t, s, 0.55), w = ramp(t, s + 0.25, 0.5), d = ramp(t, s + 0.4, 0.5);
     out.push(text(l.letter, [x, C.letterY + 0.3 * (1 - a)], { size: 11, weight: 700, color: LETTER, o: a, glow: true }));
-    out.push(text(l.word, [x, C.wordY], { size: 2.6, weight: 600, o: w }));
-    out.push(topText(wrap(l.def, 17), [x, C.defY], 2.1, { color: '#D6D6D6', o: d }));
-    out.push(line([x - 0.45, C.ruleY], [x + 0.45, C.ruleY], { color: PAL.dim, w: 0.12, o: e }));
-    out.push(topText(wrap(l.example, 17), [x, C.exY], 1.8, { color: '#9A9A9A', o: e }));
+    out.push(text(l.word, [x, C.wordY], { size: 3.4, weight: 600, o: w }));
+    out.push(topText(wrap(l.def, C.defWrap), [x, C.defY], C.defSize, { color: PAL.white, o: d }));
   });
   return out;
 }
@@ -64,7 +63,14 @@ export function drawStrip(lenses, L, active, tau, { words = true, prev = null } 
 // ---------------- move 2: one shift. What changed (left) → who gained or what moved (right) ----------------
 export const SHIFT_L = { x0: -6.7, headY: 0.45, subY: -0.18, detailY: -0.8, ax: [-0.62, 0.62], x1: 1.0,
   barXs: [1.9, 3.75], barHalf: 0.6, barH: 1.4, negBase: -2.25, negH: 1.15, posBase: -3.0 };
-export function drawShift(s, bars, tau) {
+// The bars' type and spacing, PESTEL's; stage 5's tailwind passes bigger ones (drawShift's opts.layout).
+const BAR_TYPE = { valueSize: 2.6, labelSize: 1.9, valueGap: 0.32, labelGap: 0.3, white: false, lead: 0 };
+// opts: just a headline and the two bars, for stage 5's tailwind (src/scenes/dynamics.js); without it, PESTEL's shift.
+//   head (default s.change), caption (what the bars count, centred over them at captionY), fmt (a function of a bar,
+//   or fmtBar's 'pct' / 'num'), layout: overrides of SHIFT_L and BAR_TYPE (headX, headY, headSize, captionY,
+//   captionSize, lineX0, barXs, ...; white: true for white values; lead: seconds the bars start sooner).
+export function drawShift(s, bars, tau, opts = null) {
+  if (opts) return headAndBars(s, bars, tau, opts);
   const out = [], L = SHIFT_L, col = TONE[s.tone] || PAL.cyan;
   const c = ramp(tau, 0.05, 0.4), d = ramp(tau, 0.25, 0.45), g = ramp(tau, 0.5, 0.45), e = ramp(tau, 0.85, 0.45);
   out.push(text(s.change, [L.x0, L.headY], { anchor: 'start', size: 3.4, weight: 500, o: c }));
@@ -77,17 +83,31 @@ export function drawShift(s, bars, tau) {
   return out;
 }
 
+// Just the headline and the bars (drawShift's opts), the bars building a little after the headline.
+function headAndBars(s, bars, tau, { head = s.change, caption = '', fmt = s.fmt, layout = {} } = {}) {
+  const L = { ...SHIFT_L, ...BAR_TYPE, ...layout }, col = TONE[s.tone] || PAL.cyan, out = [];
+  out.push(text(head, [L.headX ?? L.x0, L.headY], { anchor: 'start', size: L.headSize ?? 3.4, weight: 500, o: ramp(tau, 0.05, 0.4) }));
+  if (caption) {
+    const cx = (L.barXs[0] + L.barXs[Math.max(0, (bars?.length || 1) - 1)]) / 2;
+    out.push(text(caption, [cx, L.captionY], { size: L.captionSize ?? 2.6, o: ramp(tau, 0.25, 0.4) }));
+  }
+  if (bars && bars.length) out.push(...evidenceBars(bars, fmt, col, tau + L.lead, L));
+  return out;
+}
+
 // Two bars, before and after, growing from a zero line (it rises when a value is negative).
-function evidenceBars(bars, fmt, col, tau) {
-  const out = [], L = SHIFT_L, neg = bars.some(b => b.v < 0), base = neg ? L.negBase : L.posBase, H = neg ? L.negH : L.barH;
+function evidenceBars(bars, fmt, col, tau, L = { ...SHIFT_L, ...BAR_TYPE }) {
+  const out = [], neg = bars.some(b => b.v < 0), base = neg ? L.negBase : L.posBase, H = neg ? L.negH : L.barH;
   const max = Math.max(...bars.map(b => Math.abs(b.v))) || 1, o = ramp(tau, 1.05, 0.4);
-  out.push(line([L.x1, base], [L.barXs[bars.length - 1] + L.barHalf + 0.6, base], { color: '#5A5A5A', w: 0.14, o }));
+  const value = b => (typeof fmt === 'function' ? fmt(b) : fmtBar(b, fmt));
+  out.push(line([L.lineX0 ?? L.x1, base], [L.barXs[bars.length - 1] + L.barHalf + 0.6, base], { color: '#5A5A5A', w: 0.14, o }));
   bars.forEach((b, j) => {
     const x = L.barXs[j], g = ramp(tau, 1.25 + 0.4 * j, 0.7), h = (b.v / max) * H * g, up = b.v >= 0 ? 1 : -1;
     const c = j === bars.length - 1 ? col : '#7A7A7A';
     if (Math.abs(h) > 0.005) out.push(rect([x - L.barHalf, base], [x + L.barHalf, base + h], { fill: c, fo: 0.5, stroke: c, w: 0.14, o: 1, glow: j > 0 }));
-    out.push(text(fmtBar(b, fmt), [x, base + h + 0.32 * up], { size: 2.6, weight: 600, color: j > 0 ? col : PAL.white, o: ramp(tau, 1.6 + 0.4 * j, 0.4) }));
-    out.push(text(b.label, [x, base - 0.3 * up], { size: 1.9, color: PAL.white, o }));
+    out.push(text(value(b), [x, base + h + L.valueGap * up], { size: L.valueSize, weight: 600, color: j > 0 && !L.white ? col : PAL.white,
+      o: ramp(tau, 1.6 + 0.4 * j, 0.4) }));
+    out.push(text(b.label, [x, base - L.labelGap * up], { size: L.labelSize, color: PAL.white, o }));
   });
   return out;
 }

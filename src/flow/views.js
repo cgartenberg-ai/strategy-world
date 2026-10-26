@@ -43,12 +43,31 @@ export const VIEWS = {
   'roadmap-intro': { title: 'The strategy roadmap',
     hub: { items: STAGES, thumbs: pics(STAGES), layout: 'row', cards: true, groups: TEST_GROUPS, preview: true, build: true,
       flip: true } },
-  'stage-industry': { title: 'Understand the industry and ecosystem context', moves: ['q2-forces-pick', 'q4-industries'] },
+  // stage 1, scarcity across industries and ecosystems: the five forces diagram (src/scenes/industry.js), the coalition
+  // (moved here from stage 3: two walk-aways, then "Scarcity, not size"), then four questions that lead into PESTEL
+  'stage-industry': { title: 'Understand the industry and ecosystem context',
+    moves: ['industry-forces', 'q2-forces-pick', 'q4-industries', 'q5-coalition', 'q5-stick', 'q5-walkaway-ai',
+      'q5-walkaway-software', 'q5-walkaway-dealers', 'q5-walkaway-deere', 'q5-capture', 'industry-questions'],
+    hide: ['q2-forces-pick', 'q4-industries', 'q5-walkaway-software', 'q5-walkaway-dealers'] }, // the bars, the regroup
   'stage-environment': { title: 'Scan the environment',
-    moves: ['pestel-lenses', 'q2-shifts', 'pestel-shifts', 'pestel-forces', 'pestel-bottleneck'] },
+    moves: ['pestel-lenses', 'q2-shifts', 'pestel-shifts', 'pestel-forces', 'pestel-bottleneck'],
+    hide: ['q2-shifts', 'pestel-shifts', 'pestel-forces', 'pestel-bottleneck'] }, // PESTEL only: she speaks to the rest
+  // stage 3 (src/scenes/position.js): positioning means deciding (four lines), added value (the claim, its definition),
+  // then three airlines, one per click: 9 clicks. The old value-stick moves stay listed, hidden, each where it would
+  // play if brought back. Who captures value (q5-*) now plays in stage 1.
   'stage-position': { title: 'Assess position within context',
-    moves: ['q3-stick', 'q3-raise-wtp', 'q3-raise-price', 'q3-lower-cost', 'q3-wedge', 'q3-disappear', 'q3-sources',
-      'q3-best', 'q3-unique', 'q5-*'] },
-  'stage-feasibility': { title: 'Assess feasibility of position', moves: ['q6-system', 'q6-system-full', 'q6-copy', 'q6-pull'] },
-  'stage-dynamics': { title: 'Consider sustainability of position over time', moves: ['q7-threat', 'q7-all'] },
+    moves: ['position-deciding', 'position-added-value', 'q3-stick', 'q3-raise-wtp', 'q3-raise-price', 'q3-lower-cost',
+      'q3-wedge', 'q3-disappear', 'q3-sources', 'position-airlines', 'q3-best', 'q3-unique'],
+    hide: ['q3-stick', 'q3-raise-wtp', 'q3-raise-price', 'q3-lower-cost', 'q3-wedge', 'q3-disappear', 'q3-sources',
+      'q3-best', 'q3-unique'] },
+  // stage 4 (src/scenes/feasibility.js), Ryanair's activity system, under her Test 2 question: the map built as her
+  // slides build it (the pillars, then 4 clicks), then Ryanair today (the ranking), then Q5's old copy and pull (hide
+  // them here to drop them). The old system moves stay listed, hidden (they still play in the 'everything' order).
+  'stage-feasibility': { title: 'Assess feasibility of position',
+    moves: ['q6-system', 'q6-system-full', 'feasibility-map', 'feasibility-ranking', 'q6-copy', 'q6-pull'],
+    hide: ['q6-system', 'q6-system-full'] },
+  // stage 5 (src/scenes/dynamics.js), Ryanair (A) vs (C): the 2x2 (empty, 1986, relaunched), then the tailwind: 4 clicks.
+  // Southwest's threat (it still plays in the 'everything' order) and the cohorts stay listed, hidden.
+  'stage-dynamics': { title: 'Consider sustainability of position over time',
+    moves: ['dynamics-respond', 'dynamics-tailwind', 'q7-threat', 'q7-all'], hide: ['q7-threat', 'q7-all'] },
 };

@@ -33,6 +33,7 @@ import { hexToRgb } from '../colors.js';
 import {
   layoutSystem, buildSchedule, distances, pullSpot, ovalHit, ellipseClip, plantDraw, plantScore, quantile,
 } from '../concepts/activity.js';
+import { RY, drawSystem } from '../concepts/activityDraw.js'; // the system's look, shared with stage 4's reveal
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const hexMix = (h1, h2, f) => {
@@ -40,12 +41,8 @@ const hexMix = (h1, h2, f) => {
   return `#${c.map(v => v.toString(16).padStart(2, '0')).join('')}`;
 };
 
-// Ryanair colours from her slides
-const RY = { hub: '#007DD6', hubEdge: '#3DA2F0', link: '#007DD6', edge: '#4A97F5', text: '#FFFFFF',
-  dimEdge: '#4A4A4A', dimText: '#7A7A7A' };
 const HL = [null, PAL.pink, PAL.amber, '#C9B6FF']; // ripple colours by distance
 
-const BEND = { 'bridges|fees': 0.62 }; // links that bow to pass under a neighbouring oval
 // Glowing line as layered strokes: the SVG glow filter drops perfectly level or upright lines
 // (its region comes from a zero-height bounding box), so straight lines glow this way instead.
 const neon = (a, b, { color, w, o = 1, halo = 1 }) => [
@@ -86,7 +83,8 @@ export function q6Scene(ctx) {
   let prevBeat = null, lastT = 0;
 
   function setup(id, instant, source, lights = new Map(), ms = 900) {
-    ctx.overlay.reset({ title: SYSTEM_BEATS.has(id) ? TITLES.q6why : TITLES.q6, source }); // the activity system is a concept
+    // the activity system is roadmap stage 4: her Test 2 question, as on every stage-4 screen
+    ctx.overlay.reset({ title: SYSTEM_BEATS.has(id) ? TITLES.test2 : TITLES.q6, source });
     ctx.world.setYRange(undefined, undefined, { duration: dur(ctx, 600) });
     ctx.world.plates.set([], { duration: dur(ctx, 600) });
     ctx.world.ground.set([], { opacity: 0, duration: dur(ctx, 600) });
@@ -495,61 +493,16 @@ export function q6Scene(ctx) {
   const RIVAL = { x: 5.4, ys: [1.3, 0.05, -1.2], label: 2.25 };
   const COPY_DX = -2.2;
 
-  // One frame of the system. st: {dx, nodeO(id), linkF(k), pos(id) override, hl(id)->{c,k},
-  // pulse(id)->0..1, dim(id) bool, stubs:[], under:[], over:[]}
-  function systemShapes(st) {
-    const out = [...(st.under || [])];
-    const P = id => (st.pos && st.pos(id)) || [L.byId.get(id).x + st.dx, L.byId.get(id).y];
-    L.links.forEach((l, k) => {
-      const f = st.linkF(k);
-      if (f <= 0.001) return;
-      const style = st.linkStyle ? st.linkStyle(k, l) : null;
-      const first = style?.from ?? ((S.nodeAt.get(l.a) ?? 0) <= (S.nodeAt.get(l.b) ?? 0) ? l.a : l.b);
-      const other = first === l.a ? l.b : l.a;
-      const A = P(first), B = P(other), E = mixPt(A, B, f);
-      const pu = st.pulse ? Math.max(st.pulse(l.a), st.pulse(l.b)) : 0;
-      const col = style?.color || hexMix(RY.link, '#7CC4FF', pu);
-      const w = (l.hub ? 0.85 : 0.46) * (style?.w ?? 1) * (1 + 0.5 * pu), o = style?.o ?? 1;
-      const bend = BEND[`${l.a}|${l.b}`] ?? BEND[`${l.b}|${l.a}`];
-      if (bend) { // routed under a neighbour, as on her slide
-        const Cp = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2 - bend], pts = [];
-        for (let i = 0; i <= 20; i++) {
-          const u = (i / 20) * f;
-          pts.push([(1 - u) ** 2 * A[0] + 2 * (1 - u) * u * Cp[0] + u * u * B[0], (1 - u) ** 2 * A[1] + 2 * (1 - u) * u * Cp[1] + u * u * B[1]]);
-        }
-        out.push(poly(pts, { stroke: col, w, o, glow: true }));
-      } else out.push(...neon(A, E, { color: col, w, o }));
-    });
-    out.push(...(st.stubs || []));
-    const order = st.under_ ? [...L.nodes].sort((a, b) => st.under_(b.id) - st.under_(a.id)) : L.nodes;
-    for (const n of order) {
-      const o = st.nodeO(n.id);
-      if (o <= 0.003) continue;
-      const [x, y] = P(n.id), s = st.scale ? st.scale(n.id) : 1;
-      const rx = n.rx * s, ry2 = n.ry * s, h = st.hl ? st.hl(n.id) : null, pu = st.pulse ? st.pulse(n.id) : 0;
-      const dim = st.dim && st.dim(n.id);
-      if (h && (h.halo ?? h.k) > 0.01) out.push(ellipse([x, y], rx + 0.13, ry2 + 0.13, { fill: h.c, fo: 0.28, o: o * (h.halo ?? h.k), glow: true }));
-      if (n.hub) {
-        out.push(ellipse([x, y], rx + 0.1 + 0.06 * pu, ry2 + 0.1 + 0.06 * pu, { fill: RY.hub, fo: 0.22 + 0.25 * pu, o, glow: true }));
-        const hEdge = h && h.k > 0.01 ? hexMix(RY.hubEdge, h.c, Math.min(1, h.k * 2)) : hexMix(RY.hubEdge, '#BFE4FF', pu);
-        out.push(ellipse([x, y], rx, ry2, { fill: dim ? '#0B2740' : RY.hub, stroke: dim ? RY.dimEdge : hEdge, w: 0.25 + (h ? 0.25 * h.k : 0), o, glow: !dim }));
-        out.push(text(n.text, [x, y], { size: n.size, weight: 700, color: dim ? RY.dimText : RY.text, o }));
-      } else {
-        const edge = dim ? RY.dimEdge : h && h.k > 0.01 ? hexMix(RY.edge, h.c, Math.min(1, h.k * 2)) : hexMix(RY.edge, '#BFE4FF', pu);
-        out.push(ellipse([x, y], rx, ry2, { fill: '#000', fo: 1, stroke: edge, w: 0.3 + 0.25 * pu + (h ? 0.2 * h.k : 0), o, glow: !dim }));
-        out.push(text(n.text, [x, y], { size: n.size, color: dim ? RY.dimText : RY.text, o }));
-      }
-    }
-    out.push(...(st.over || []));
-    return out;
-  }
+  // One frame of the system (src/concepts/activityDraw.js; st: {dx, nodeO(id), linkF(k), pos(id) override,
+  // hl(id)->{c,k}, pulse(id)->0..1, dim(id) bool, alpha, stubs:[], under:[], over:[]}). Links grow from the end built first.
+  const systemShapes = st => drawSystem(L, { from: l => ((S.nodeAt.get(l.a) ?? 0) <= (S.nodeAt.get(l.b) ?? 0) ? l.a : l.b), ...st });
   const appear = (t, at) => ramp(t, at, 0.45);
   const flashRing = (n, x, y, t, at, color = PAL.sky) => {
     const u = (t - at) / 0.9;
     if (u <= 0 || u >= 1) return null;
     return ellipse([x, y], n.rx + 0.45 * u, n.ry + 0.45 * u, { stroke: color, w: 0.35, o: 0.8 * (1 - u), glow: true });
   };
-  const ryanairLabel = o => text('Ryanair', [-7.3, 2.5], { anchor: 'start', size: 2.2, weight: 600, color: PAL.sky, o });
+  const ryanairLabel = o => text('Ryanair', [-7.3, 2.5], { anchor: 'start', size: 2.2, weight: 600, color: '#FFFFFF', o });
   const EXPORT_T = 1e5; // export mode runs the beat clock from far in the past: hold the living effects at rest
   const breathe = t => (t > EXPORT_T ? 0.09 : 0.18 * (0.5 + 0.5 * Math.sin((2 * Math.PI * t) / 3.6)));
 
@@ -600,8 +553,10 @@ export function q6Scene(ctx) {
     return Math.exp(-(u * u) / 0.05) + Math.exp(-((u - period) ** 2) / 0.05);
   };
 
-  function copyDraw(t, dx0) {
-    const dx = mix(dx0, COPY_DX, ramp(t, 0, 1.2));
+  // fadeIn: the map was not on screen just before (stage 4 comes here from Ryanair today), so it fades in.
+  // The copies keep white words; they look dim (alone, unreinforced) by a thin, dark outline.
+  function copyDraw(t, dx0, fadeIn = false) {
+    const dx = mix(dx0, COPY_DX, ramp(t, 0, 1.2)), alpha = fadeIn ? ramp(t, 0, 0.6) : 1;
     sys.dx = dx;
     const tc = 1.6; // copies are made
     const over = [];
@@ -611,15 +566,15 @@ export function q6Scene(ctx) {
       if (t < tc + i * 0.25) return;
       const mid = [(home[0] + dest[0]) / 2, Math.max(home[1], dest[1]) + 0.9];
       const q = f, p = [ (1 - q) ** 2 * home[0] + 2 * (1 - q) * q * mid[0] + q * q * dest[0], (1 - q) ** 2 * home[1] + 2 * (1 - q) * q * mid[1] + q * q * dest[1] ];
-      const fade = ramp(t, tc + i * 0.25 + 0.3, 1.3), edge = hexMix(PAL.amber, '#6A6A6A', fade);
+      const fade = ramp(t, tc + i * 0.25 + 0.3, 1.3), edge = hexMix(PAL.amber, RY.dimEdge, fade);
       const fr = flashRing(n, home[0], home[1], t, tc + i * 0.25, PAL.amber); if (fr) over.push(fr);
-      over.push(ellipse(p, n.rx, n.ry, { fill: '#000', fo: f < 1 ? 0.55 : 1, stroke: edge, w: 0.3 }));
-      over.push(text(n.text, p, { size: n.size, color: hexMix('#FFFFFF', '#A8A8A8', fade) }));
+      over.push(ellipse(p, n.rx, n.ry, { fill: '#000', fo: f < 1 ? 0.55 : 1, stroke: edge, w: 0.3 - 0.18 * fade, copy: true }));
+      over.push(text(n.text, p, { size: n.size, color: '#FFFFFF' }));
     });
-    over.push(text('Rival', [RIVAL.x, RIVAL.label], { size: 2.2, weight: 600, color: PAL.grey, o: ramp(t, tc + 0.8, 0.6) }));
+    over.push(text('Rival', [RIVAL.x, RIVAL.label], { size: 2.2, weight: 600, color: '#FFFFFF', o: ramp(t, tc + 0.8, 0.6) }));
     const t0 = tc + 2.6;
-    return [ryanairLabel(1), ...systemShapes({
-      dx, over,
+    return [ryanairLabel(alpha), ...systemShapes({
+      dx, over, alpha,
       nodeO: () => 1, linkF: () => 1,
       pulse: id => (t > t0 ? heartbeat(t, t0, id) : 0) * 0.9,
     })];
@@ -664,7 +619,7 @@ export function q6Scene(ctx) {
         if (!cur || cur.k < level) hl.set(id, { c, k: level, halo });
       }
       const home = [n.x + dx, n.y];
-      if (fade > 0 && t > e.at + 0.3) under.push(...dashedOval(home, n.rx, n.ry, { stroke: '#7A7A7A', w: 0.22, o: fade * ramp(t, e.at + 0.3, 0.4) }));
+      if (fade > 0 && t > e.at + 0.3) under.push(...dashedOval(home, n.rx, n.ry, { stroke: RY.edge, w: 0.22, o: 0.8 * fade * ramp(t, e.at + 0.3, 0.4) }));
       for (let r = 0; r < 2; r++) { // the ripple
         const u = (t - tS - r * 0.35) / 2.6;
         if (u > 0 && u < 1) over.push(...ringBelow(home, 0.3 + 4.9 * Math.sqrt(u), { stroke: PAL.pink, w: 0.35, o: 0.6 * (1 - u) ** 1.5 * fade, glow: true }));
@@ -888,7 +843,7 @@ export function q6Scene(ctx) {
     })(),
   ];
   if (L) {
-    let fadeSat = false, skip = false, dx0 = 0;
+    let fadeSat = false, skip = false, dx0 = 0, copyIn = false;
     beats.push(
       {
         id: 'q6-system',
@@ -913,10 +868,13 @@ export function q6Scene(ctx) {
         enter(instant) {
           const from = setup('q6-copy', instant, sysSource);
           dx0 = SYSTEM_BEATS.has(from) ? sys.dx : COPY_DX;
+          // in stage 4 it follows Ryanair today (feasibility-ranking): the map was not on screen, so it fades in, in place
+          copyIn = !instant && !SYSTEM_BEATS.has(ctx.fromBeat?.id);
+          if (copyIn) dx0 = COPY_DX;
           ctx.overlay.caption('');
         },
         tick(now) { if (tickT(now) > 4.2) ctx.overlay.caption('Copying parts isn’t enough'); },
-        draw: t => copyDraw(clock(t), dx0),
+        draw: t => copyDraw(clock(t), dx0, copyIn),
       },
       {
         id: 'q6-pull',

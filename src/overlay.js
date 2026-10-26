@@ -224,7 +224,7 @@ function drawSide(spec, W, H, U0) {
 //   {k:'line', a:[x,y], b:[x,y], color, w, o, dash, arrow: 0|1|2, glow}
 //   {k:'rect', a:[x,y], b:[x,y], fill, fo, stroke, w, o, r}
 //   {k:'circle', at:[x,y], r (U) | rw (world), fill, fo, stroke, w, o, glow}
-//   {k:'text', at:[x,y], text, size, color, anchor, base, weight, o, italic}
+//   {k:'text', at:[x,y], text, size, color, anchor, base, weight, o, italic, hi, hiWeight} (hi: colour of **marked** words)
 //   {k:'poly', pts:[[x,y],...], closed, fill, fo, stroke, w, o, glow}
 //   {k:'ellipse', at:[x,y], rx, ry (world), fill, fo, stroke, w, o, glow}
 const DEFS = '<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%">'
@@ -265,7 +265,10 @@ export function drawShapes(list, world, U, W = 0, H = 0) {
       const lines = String(s.text).split('\n');
       const size = U * (s.size ?? 1.6), lh = size * 1.18;
       const y0 = y - ((lines.length - 1) * lh) / 2 * ((s.base ?? 'middle') === 'middle' ? 1 : 0);
-      const tspans = lines.map((l, i) => `<tspan x="${x}" y="${y0 + i * lh}">${esc(l)}</tspan>`).join('');
+      // hi: words marked **like this** (within a line) take that colour, in weight hiWeight (600)
+      const words = l => (!s.hi ? esc(l) : l.split('**').map((part, j) => (j % 2
+        ? `<tspan fill="${s.hi}" font-weight="${s.hiWeight || 600}">${esc(part)}</tspan>` : esc(part))).join(''));
+      const tspans = lines.map((l, i) => `<tspan x="${x}" y="${y0 + i * lh}">${words(l)}</tspan>`).join('');
       out.push(`<text font-size="${size}" fill="${s.color || '#fff'}" fill-opacity="${o}" text-anchor="${s.anchor || 'middle'}"`
         + ` dominant-baseline="${s.base || 'middle'}" font-weight="${s.weight || 400}"${s.italic ? ' font-style="italic"' : ''}${glow}>${tspans}</text>`);
     } else if (s.k === 'ellipse') {

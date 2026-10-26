@@ -393,7 +393,7 @@ export function q1Scene(ctx) {
         // each click moves one decade (2.5 s); Space plays them all, resting ~5 s on each
         timelapse: { from: 0, to: STOPS.length - 1, secondsPerYear: HOLD_S + MOVE_S,
           clickSteps: true, stepFrom: HOLD_S / (HOLD_S + MOVE_S),
-          fromYear: y => Math.max(0, STOPS.filter(s => s <= y).length - 1) },
+          fromYear: y => Math.max(0, STOPS.filter(s => s <= y).length - 1), yearAt: k => STOPS[k] }, // yearAt: the run sheet's links
         enter(instant) { setup(); go(ctx, SHOTS.heights, 600, instant); },
         frame(c) {
           if (c <= 1e-6 && ctx.world.busy()) return; // let the opening build finish

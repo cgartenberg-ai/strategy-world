@@ -22,14 +22,14 @@
     {"id": "fleet", "label": "Standardized fleet of 737s", "x": 0.73, "y": 0.67, "cluster": "lean"},
     {"id": "bulk", "label": "Bulk aircraft purchases", "x": 0.82, "y": 0.67, "cluster": "lean"},
     {"id": "ground", "label": "Outsource ground ops", "x": 0.70, "y": 0.82, "cluster": "lean"},
-    {"id": "p2p", "label": "Point-to-point short haul, no hub", "x": 0.58, "y": 0.84, "cluster": "lean"},
+    {"id": "p2p", "label": "Point-to-point short haul (no hub)", "x": 0.58, "y": 0.84, "cluster": "lean"},
     {"id": "turn", "label": "25-minute gate turnaround", "x": 0.47, "y": 0.74, "cluster": "lean"},
     {"id": "single", "label": "Single class fares", "x": 0.35, "y": 0.29, "cluster": "fares"},
     {"id": "monitor", "label": "Active price monitoring", "x": 0.25, "y": 0.38, "cluster": "fares"},
     {"id": "leisure", "label": "Focus on price-sensitive leisure travel", "x": 0.24, "y": 0.51, "cluster": "fares"},
-    {"id": "playoff", "label": "Play airports, cities off each other", "x": 0.24, "y": 0.64, "cluster": "fares"},
+    {"id": "playoff", "label": "Play airports and cities off each other", "x": 0.24, "y": 0.64, "cluster": "fares"},
     {"id": "fees", "label": "Negotiate low landing and other fees", "x": 0.23, "y": 0.78, "cluster": "fares"},
-    {"id": "first", "label": "Enter first on routes, preempt competition", "x": 0.35, "y": 0.79, "cluster": "fares"},
+    {"id": "first", "label": "Enter first on routes (preempt competition)", "x": 0.35, "y": 0.79, "cluster": "fares"},
     {"id": "bridges", "label": "No air bridges", "x": 0.47, "y": 0.86, "cluster": "fares"}
   ],
   "links": [
@@ -43,5 +43,20 @@
     ["nobags", "turn"], ["p2p", "turn"], ["p2p", "ground"], ["bulk", "fleet"], ["bridges", "turn"], ["bridges", "fees"],
     ["fees", "playoff"], ["fees", "first"], ["playoff", "leisure"], ["leisure", "monitor"]
   ],
-  "build": ["hubs", "hublinks", "frills", "lean", "fares"]
+  "build": ["hubs", "hublinks", "frills", "lean", "fares"],
+  "steps_note": "The stage-4 reveal (src/scenes/feasibility.js), one click per slide of hers (SMBC deck pp. 58-62): what each adds. Bubbles come in the order listed; a link draws once both its bubbles are up. Together the steps hold every link above.",
+  "steps": [
+    {"slide": 58, "nodes": ["fares", "frills", "markets", "lean"], "links": []},
+    {"slide": 59, "nodes": [], "links": [["fares", "frills"], ["fares", "markets"], ["fares", "lean"], ["frills", "markets"], ["frills", "lean"], ["markets", "lean"]]},
+    {"slide": 60, "nodes": ["extras", "maxseat", "meals", "seats", "dutyfree", "ads", "lowit", "nobags", "incent"],
+      "links": [["frills", "extras"], ["frills", "maxseat"], ["frills", "meals"], ["frills", "seats"], ["frills", "dutyfree"], ["frills", "ads"],
+        ["frills", "lowit"], ["frills", "nobags"], ["frills", "incent"], ["meals", "extras"], ["dutyfree", "ads"], ["lean", "incent"]]},
+    {"slide": 61, "nodes": ["unions", "turn", "p2p", "ground", "fleet", "bulk"],
+      "links": [["unions", "incent"], ["nobags", "turn"], ["markets", "turn"], ["lean", "turn"], ["p2p", "turn"], ["lean", "p2p"],
+        ["lean", "ground"], ["lean", "fleet"], ["bulk", "fleet"]]},
+    {"slide": 62, "nodes": ["single", "monitor", "leisure", "playoff", "fees", "first", "bridges"],
+      "links": [["fares", "single"], ["maxseat", "single"], ["fares", "maxseat"], ["fares", "extras"], ["fares", "monitor"], ["fares", "leisure"],
+        ["leisure", "monitor"], ["markets", "leisure"], ["playoff", "leisure"], ["markets", "playoff"], ["fees", "playoff"], ["markets", "fees"],
+        ["fees", "first"], ["markets", "first"], ["bridges", "fees"], ["bridges", "turn"], ["incent", "turn"], ["p2p", "ground"]]}
+  ]
 }

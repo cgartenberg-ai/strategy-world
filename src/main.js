@@ -22,6 +22,10 @@ import { createInsightLayer, insightMove } from './insight.js';
 import { createAskLayer, askMoves } from './scenes/ask.js';
 import { testsScene } from './scenes/tests.js';
 import { pestelScene } from './scenes/pestel.js';
+import { industryScene } from './scenes/industry.js';
+import { positionScene } from './scenes/position.js';
+import { feasibilityScene } from './scenes/feasibility.js';
+import { dynamicsScene } from './scenes/dynamics.js';
 import { q1Scene } from './scenes/q1.js';
 import { q2Scene } from './scenes/q2.js';
 import { q3Scene } from './scenes/q3.js';
@@ -77,7 +81,8 @@ async function boot() {
   const land = mapScene(ctx);
   const opening = { id: 'map', beats: land.beats.slice(0, 2) }, closing = { id: 'end', beats: land.beats.slice(2) };
   const built = [opening, q1Scene(ctx), withMore(q2Scene(ctx), q2Concepts), withMore(q3Scene(ctx), q3Concepts),
-    q4Scene(ctx), q5Scene(ctx), q6Scene(ctx), withMore(q7Scene(ctx), q7Concepts), closing, testsScene(ctx), pestelScene(ctx)];
+    q4Scene(ctx), q5Scene(ctx), q6Scene(ctx), withMore(q7Scene(ctx), q7Concepts), closing, testsScene(ctx), pestelScene(ctx),
+    industryScene(ctx), positionScene(ctx), feasibilityScene(ctx), dynamicsScene(ctx)];
   // each question's opening (its words alone, then in the header: src/scenes/ask.js) goes in first, so a module's
   // `q1-*` takes it before the question's own moves
   const registry = new Map(askMoves(ctx).map(b => [b.id, b]));
@@ -211,6 +216,11 @@ async function boot() {
   }
   requestAnimationFrame(loop);
   window.__app = { director, world, rig, ctx };
+  // ?runsheet=8735: capture the printable run sheet's stills (tools/runsheet.sh; local only, tools/ isn't published)
+  if (params.has('runsheet')) {
+    import('/tools/lighttable.js').then(m => m.makeLightTable({ port: Number(params.get('runsheet')) || 8735 }))
+      .catch(err => console.error('run sheet:', err));
+  }
 }
 
 boot().catch(err => {

@@ -66,8 +66,8 @@
       "why": {"rivalry": "Thousands of funded rivals", "buyers": "Easy to switch for many", "suppliers": "Engineers and cloud capacity", "entrants": "Cheap to launch in the cloud", "substitutes": "Open source and AI tools"}
     },
     "Airlines": {
-      "strength": {"entrants": 0.6, "suppliers": 0.8, "rivalry": 0.9, "buyers": 0.8, "substitutes": 0.5},
-      "why": {"entrants": "Low-cost carriers keep coming", "suppliers": "Two plane makers, unions, airports", "rivalry": "Many carriers, high fixed costs", "buyers": "Fares compared in seconds", "substitutes": "Rail, car, video call"}
+      "strength": {"entrants": 0.6, "suppliers": 0.8, "rivalry": 0.9, "buyers": 0.95, "substitutes": 0.5},
+      "why": {"entrants": "Low-cost carriers keep coming", "suppliers": "Two plane makers, unions, airports", "rivalry": "Many carriers, high fixed costs", "buyers": "Switching is free, fares compared instantly", "substitutes": "Rail, car, video call"}
     },
     "Biotechnology": {
       "strength": {"rivalry": 0.55, "buyers": 0.55, "suppliers": 0.5, "entrants": 0.7, "substitutes": 0.45},
