@@ -3,8 +3,8 @@
 // audience). A smooth glowing line draws itself left to right, a soft fading area under it and a bright dot riding
 // the tip; the two ends are written as big numbers. The line passes through every year's value (monotone cubic, so
 // it never overshoots between years). Data: q1_heights.json `intangibles` (pipeline: code/q1_intangibles.py,
-// methods §13). Pure layout here (tests/q1intangibles.test.js). q1.js shows it as Q1's third call-out: small in the
-// upper right (z = 0, only the ends written), and, clicked, this full chart (z = 1) on the stage.
+// methods §13). Pure layout here (tests/q1intangibles.test.js). q1.js shows it as the full chart (z = 1) when Q1's
+// third tile ("Intangibles") is clicked; the small version (z = 0) is no longer shown there.
 
 import { text, line, circle, poly, PAL } from '../concepts/kit.js';
 import { ramp } from '../anim.js';

@@ -2,7 +2,8 @@
 //   q6-plants      two factories, Plant A and Plant B, built in three clicks: the plants, the same inputs, then
 //                  manufacturing: Plant B's output races to 192 while Plant A's stops at 100 (Syverson)
 //   q6-plants-free the extra 92 becomes a ghost of a second factory: almost a second factory, for free
-//   q6-inside      inside the factories: 16 management-question lights, lit to scores 0.38 and 0.81 (Bloom et al. 2019)
+//   q6-inside      inside the factories (they grow to fill the frame): 16 management-question lights, lit to scores
+//                  0.38 and 0.81 (Bloom et al. 2019)
 //   q6-practices   US plants on the management-score scale: a wide spread (Bloom et al. 2019, Table A4); after
 //                  q6-inside the two factories shrink into dots and fly to their scores first
 //   q6-drivers     the stronger plant's extra output (the gap), lit one click at a time by the share that lines up
@@ -24,7 +25,7 @@ import { PAL, text, line, rect, circle, ellipse, poly, light, wrap } from '../co
 import { dotHistogram, boxesFor, gauge, PLANT_NAMES, openingClocks, feedAt, stepsBegun } from '../concepts/management.js';
 import {
   LANES, FACTORY, STREAM, PILE, RACE, RACE_END, BOX, factoryCentre, pileX0, slotCentre, pileTop, drawFactory, ghostFactory,
-  inputLights, inputsLabel, outputPile, outputCounter, factoryLabel, scoreLights, SCORE_LIGHTS,
+  inputLights, inputsLabel, outputPile, outputCounter, factoryLabel, scoreLights, SCORE_LIGHTS, INSIDE_LANES, mixLane,
 } from '../concepts/managementDraw.js';
 import { PRELUDE_SECONDS } from '../concepts/prelude.js';
 import { ramp, mix, mixPt, CONCEPT } from '../anim.js';
@@ -324,37 +325,55 @@ export function q6Scene(ctx) {
 
   // ======================= 3b. inside the factories: 16 questions, one management score (Bloom et al. 2019) =======================
   const SCORES = [MS.p10, MS.p90];                    // the 10th- and 90th-percentile scores, for plants like these
-  const INSIDE = { fillAt: 1.1, fillDur: 1.6 };
+  // the factories grow (from their q6-plants-free size and place to INSIDE_LANES) as the piles fade; then the lights
+  // come on and fill toward each plant's score
+  const INSIDE = { growAt: 0.1, growDur: 1.1, showAt: 1.2, fillAt: 1.6, fillDur: 1.6 };
+  const SCORE_TYPE = { label: 3.4, value: 7.5 };      // U: "Management score" and the score itself, beside each factory
   const insideSource = 'Source: Bloom et al. (2019), American Economic Review; Census MOPS. Scores: the 10th and 90th percentiles '
     + '(online appendix Table A4); questions by area from Table A2; each area lit to the overall score.';
-  const scoreX = L => L.x0 + FACTORY.w + 0.55;
-  // the score lights, the scores beside the factories and the one line; tt: the move's clock
-  function insideInner(tt, o = 1) {
+  const scoreX = L => L.x0 + FACTORY.w * (L.s ?? 1) + 0.6;
+  const insideGrow = c => ramp(c, INSIDE.growAt, INSIDE.growDur, 'inOutSine'); // 0 = the q6-plants-free size, 1 = big
+  const lanesAt = k => LANES.map((L, i) => mixLane(L, INSIDE_LANES[i], k));
+  // the score lights and the score beside each factory; tt: the move's clock
+  function insideInner(tt, o = 1, lanes = INSIDE_LANES) {
     if (o <= 0.003) return [];
-    const out = [], fill = ramp(tt, INSIDE.fillAt, INSIDE.fillDur, 'inOutSine'), oS = ramp(tt, 0.6, 0.5) * o;
-    LANES.forEach((L, i) => {
+    const out = [], fill = ramp(tt, INSIDE.fillAt, INSIDE.fillDur, 'inOutSine'), oS = ramp(tt, INSIDE.showAt, 0.5) * o;
+    lanes.forEach((L, i) => {
+      const s = L.s ?? 1;
       out.push(...scoreLights(L, SCORES[i], fill, oS));
-      out.push(text('Management score', [scoreX(L), L.base + 1.14], { anchor: 'start', size: 2.4, o: oS }));
-      out.push(text((SCORES[i] * fill).toFixed(2), [scoreX(L), L.base + 0.42],
-        { anchor: 'start', size: 5.4, weight: 600, color: PAL.amber, o: oS }));
+      out.push(text('Management score', [scoreX(L), L.base + 1.15 * s], { anchor: 'start', size: SCORE_TYPE.label * s / INSIDE_LANES[i].s,
+        color: PAL.white, o: oS }));
+      out.push(text((SCORES[i] * fill).toFixed(2), [scoreX(L), L.base + 0.5 * s],
+        { anchor: 'start', size: SCORE_TYPE.value * s / INSIDE_LANES[i].s, weight: 600, color: PAL.amber, o: oS }));
     });
-    out.push(text('Plants like these, scored on 16 management questions', [scoreX(LANES[0]), (LANES[0].base + pileTop(LANES[1])) / 2],
-      { anchor: 'start', size: 2.4, o: ramp(tt, 2.5, 0.6) * o }));
     return out;
   }
-  // oOut: what is left of q6-plants-free (piles, counters, inputs label, and its ghost when ghost = true)
-  function insideDraw(tt, { oFac = 1, oName = oFac, oInner = 1, oOut = 0, ghost = false } = {}) {
+  // the factories (grow: 0 at their q6-plants-free size and place, 1 big) and their names; oOut: what is left of
+  // q6-plants-free (piles, counters, inputs label, and its ghost when ghost = true), drawn underneath
+  function insideDraw(tt, { oFac = 1, oName = oFac, oInner = 1, oOut = 0, ghost = false, grow = 1 } = {}) {
     const out = [];
-    LANES.forEach((L, i) => {
-      out.push(...drawFactory(factoryCentre(L), 1, oFac));
-      out.push(...factoryLabel(L, NAMES[i][0], NAMES[i][1], oName, oName * oOut, mix(SCORE_LIGHTS.nameY, 1.0, oOut)));
-      if (oOut > 0.003) {
+    if (oOut > 0.003) {
+      LANES.forEach((L, i) => {
         out.push(...outputPile(L, UNITS[i], 1e6, { o: oOut, style: i && ghost ? k => (k >= GAP0 ? { o: 0 } : null) : null }));
         out.push(...outputCounter(L, UNITS[i], 1e6, oOut));
-      }
+      });
+      out.push(...inputsLabel(oOut), ...(ghost ? ghostDraw(1, oOut) : []));
+    }
+    lanesAt(grow).forEach((L, i) => {
+      out.push(...drawFactory(factoryCentre(L), L.s, oFac));
+      out.push(...factoryLabel(L, NAMES[i][0], NAMES[i][1], oName, oName * oOut, mix(SCORE_LIGHTS.nameY, 1.05, oOut)));
     });
-    if (oOut > 0.003) out.push(...inputsLabel(oOut), ...(ghost ? ghostDraw(1, oOut) : []));
     return out.concat(insideInner(tt, oInner));
+  }
+  // back to q6-plants-free: the big factories shrink to their earlier size (k: 1 big .. 0 there) as their lights go
+  // out and their percentiles return (oSub)
+  function insideShrink(c, oSub) {
+    const k = 1 - insideGrow(c), lanes = lanesAt(k), out = [];
+    lanes.forEach((L, i) => {
+      out.push(...drawFactory(factoryCentre(L), L.s, 1));
+      out.push(...factoryLabel(L, NAMES[i][0], NAMES[i][1], 1, oSub, mix(1.05, SCORE_LIGHTS.nameY, k)));
+    });
+    return out.concat(insideInner(1e6, 1 - ramp(c, 0, 0.35), lanes));
   }
   const inside = { back: false, ghost: false, flyBack: false };
 
@@ -365,9 +384,11 @@ export function q6Scene(ctx) {
   const plantDots = a => new Map(DOT_IDS.map((id, i) => [id, light(...plantDot(i), { size: 0.1, color: hexToRgb(PAL.amber), alpha: a })]));
   const flyE = c => clamp01((c - FLY.at) / FLY.dur);                   // 0 = in their lanes, 1 = at their scores
   const dotAlpha = e => ramp(e, 0.72, 0.25);
-  function flyShapes(e) {
+  // e: 0 = the factories in `lanes` (q6-inside's big ones; q6-drivers passes its own), 1 = two dots at their scores
+  function flyShapes(e, lanes = INSIDE_LANES) {
     const out = [], k = ramp(e, 0, 1);
-    LANES.forEach((L, i) => out.push(...drawFactory(mixPt(factoryCentre(L), plantDot(i), k), mix(1, 0.06, k), 1 - ramp(e, 0.82, 0.16))));
+    lanes.forEach((L, i) => out.push(...drawFactory(mixPt(factoryCentre(L), plantDot(i), k), mix(L.s ?? 1, 0.06, k),
+      1 - ramp(e, 0.82, 0.16))));
     return out;
   }
   const everyDot = (c, lead) => text('Every dot is a plant', [5.3, 0.9],
@@ -424,7 +445,7 @@ export function q6Scene(ctx) {
   function driversDraw(c) {
     const landed = !drv.fly || c >= FLY.at + FLY.dur, oFac = drv.fade ? ramp(c, 0, 0.5) : 1;
     const oPile = drv.fly ? drvPileO(c) : oFac, out = [];
-    if (!landed) out.push(...flyShapes(1 - flyE(c)));
+    if (!landed) out.push(...flyShapes(1 - flyE(c), LANES)); // into the factories at their q6-plants size
     out.push(...plantsDraw(1e6, { oFac: landed ? oFac : 0, oName: drv.fly ? oPile : oFac, oPile, oIn: oPile, extra: gapLook(drv.y) }));
     return out.concat(gapDraw(drv.y, oPile));
   }
@@ -704,13 +725,17 @@ export function q6Scene(ctx) {
   // ======================= beats =======================
   const EXPORTING = typeof location !== 'undefined' && new URLSearchParams(location.search).has('export');
   let plantsBack = null;                                        // q6-plants entered from a later Q5 move: settled
-  const free = { catchUp: null, back: false, instant: false };
-  // q6-plants-free: a race cut short by the click finishes quickly first; then the extra 92 turns into a ghost factory
+  const free = { catchUp: null, back: false, instant: false, fromInside: false };
+  // q6-plants-free: a race cut short by the click finishes quickly first; then the extra 92 turns into a ghost factory.
+  // Back from q6-inside the big factories shrink to this size first, and the piles return as they do.
   const freeRace = c => (free.catchUp == null ? 1e6 : free.catchUp + (RACE_END + 0.05 - free.catchUp) * ramp(c, 0, 0.8, 'inOutSine'));
   function freeDraw(c) {
-    const lead = free.catchUp != null ? 0.8 : 0, oB = free.back ? ramp(c, 0, 0.6) : 1;
+    const lead = free.catchUp != null ? 0.8 : 0, shrink = free.fromInside && insideGrow(c) < 1;
+    const oB = free.fromInside ? ramp(c, 0.5, 0.6) : free.back ? ramp(c, 0, 0.6) : 1;
     const g = free.instant || free.back ? 1 : clamp01((c - lead - 0.25) / 2.2);
-    return plantsDraw(freeRace(c), { oPile: oB, oSub: oB, oIn: oB, extra: extraLook(g) }).concat(ghostDraw(g, oB));
+    const out = plantsDraw(freeRace(c), { oPile: oB, oSub: oB, oIn: oB, extra: extraLook(g), ...(shrink ? { oFac: 0, oName: 0 } : {}) })
+      .concat(ghostDraw(g, oB));
+    return shrink ? out.concat(insideShrink(c, oB)) : out;
   }
   const beats = [
     {
@@ -719,7 +744,9 @@ export function q6Scene(ctx) {
       // the output races; the next click goes on to the free factory (a race cut short finishes there)
       timelapse: { from: 0, to: 2, secondsPerYear: 0.25, clickSteps: true, spaceSteps: true },
       enter(instant) {
-        const from = instant ? null : prevBeat, now = tickT(performance.now());
+        // the Q5 move we came from, only if it was the one on screen (after the question's opening, q6-ask, the plants
+        // start fresh, even on a second visit to Q5)
+        const from = instant || ctx.fromBeat?.id !== prevBeat ? null : prevBeat, now = tickT(performance.now());
         // after a "you are here" the plants fade in once it has gone; from a master-view tile they are already there
         const pre = !instant && ctx.prelude ? Math.max(0, 1.1 - (performance.now() - ctx.prelude.start) / 1000) : 0;
         plantsBack = isBack('q6-plants', from) ? from : null;
@@ -753,6 +780,7 @@ export function q6Scene(ctx) {
         const from = instant ? null : prevBeat;
         free.catchUp = from === 'q6-plants' && raceT < RACE_END ? raceT : null;
         free.back = isBack('q6-plants-free', from);
+        free.fromInside = from === 'q6-inside'; // the big factories shrink back to this size
         free.instant = !!instant;
         setup('q6-plants-free', instant, syvSource, plantsLights(free.catchUp ?? 1e6));
       },
@@ -775,7 +803,8 @@ export function q6Scene(ctx) {
             : insideDraw(1e6, { oName: ramp(c, FLY.at + FLY.dur, 0.5), oInner: ramp(c, FLY.at + FLY.dur, 0.5) });
         }
         if (inside.back) return insideDraw(1e6, { oFac: ramp(c, 0, 0.5), oInner: ramp(c, 0, 0.5) });
-        return insideDraw(c, { oOut: 1 - ramp(c, 0, 0.7), ghost: inside.ghost });
+        // the piles fade as the factories grow to their big size; then the lights fill
+        return insideDraw(c, { oOut: 1 - ramp(c, 0, 0.7), ghost: inside.ghost, grow: insideGrow(c) });
       },
     },
     {
@@ -789,7 +818,10 @@ export function q6Scene(ctx) {
         mOpen = false; mAt = -1e9;
         const from = instant ? null : prevBeat;
         prac.fly = from === 'q6-inside';
-        prac.back = isBack('q6-practices', from);
+        // back: from a later Q5 move, or from Q5's punchline (it follows this move now that q6-drivers is hidden;
+        // the punchline leaves prevBeat at this move)
+        const fromPunchline = !instant && !!ctx.fromBeat?.insight && from === 'q6-practices';
+        prac.back = isBack('q6-practices', from) || fromPunchline;
         prac.dots = prac.fly || (prac.back && prac.dots);
         prac.lead = prac.fly ? FLY.at + FLY.dur + 0.1 : 0;
         setup('q6-practices', instant, practicesSource, pracLights(instant || prac.back ? 1e6 : 0), 700);
@@ -801,7 +833,8 @@ export function q6Scene(ctx) {
           const e = flyE(c);
           if (e < 1) out.push(...flyShapes(e));
           const oIn = 1 - ramp(c, 0, 0.3);
-          out.push(...insideInner(1e6, oIn), ...LANES.flatMap((L, i) => factoryLabel(L, NAMES[i][0], NAMES[i][1], oIn, 0, SCORE_LIGHTS.nameY)));
+          out.push(...insideInner(1e6, oIn),
+            ...INSIDE_LANES.flatMap((L, i) => factoryLabel(L, NAMES[i][0], NAMES[i][1], oIn, 0, SCORE_LIGHTS.nameY)));
           out.push(everyDot(c, prac.lead));
         }
         return out.concat(measuredDraw(c));

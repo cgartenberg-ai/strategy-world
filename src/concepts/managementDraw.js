@@ -29,7 +29,18 @@ export const COUNTER_X = 6.6;
 export const BOX = { stroke: '#8FD0FF', fill: PAL.sky, fo: 0.32 };
 export const STREAM_IDS = 0;                                                 // CONCEPT ids 0..79: input lights
 
-export const factoryCentre = L => [L.x0 + FACTORY.w / 2, L.base + FACTORY.h / 2];
+// q6-inside: the same two factories, bigger (s: their scale; a lane without s is at 1), stacked on the left with room
+// beside them for their scores; from the chimney tops to the lower base they fill the frame between title and source
+export const INSIDE_LANES = [
+  { key: 'weak', x0: -3.95, base: -0.03, s: 1.35 },
+  { key: 'strong', x0: -3.95, base: -3.75, s: 1.35 },
+];
+const scaleOf = L => L.s ?? 1;
+// a lane part way (k: 0..1) from a to b: place and size together
+export const mixLane = (a, b, k) => ({ ...b, x0: a.x0 + (b.x0 - a.x0) * k, base: a.base + (b.base - a.base) * k,
+  s: scaleOf(a) + (scaleOf(b) - scaleOf(a)) * k });
+
+export const factoryCentre = L => [L.x0 + (FACTORY.w * scaleOf(L)) / 2, L.base + (FACTORY.h * scaleOf(L)) / 2];
 export const pileX0 = L => L.x0 + FACTORY.w + PILE.dx;
 export const slotCentre = (L, k) => {
   const { col, row } = pileSlot(k, PILE.rows);
@@ -127,30 +138,35 @@ export function outputCounter(L, units, t, o = 1, { color = '#FFFFFF' } = {}) {
   return [text(String(c), [COUNTER_X, L.base + (PILE.rows * PILE.pitch) / 2], { size: 6.2, weight: 600, color, o, glow: done })];
 }
 
-// The plant's name inside its factory, with the precise meaning on a second line.
+// The plant's name inside its factory, with the precise meaning on a second line (nameY: the name's height above
+// the base at scale 1). Sizes and places follow the lane's scale.
 export function factoryLabel(L, name, sub, o = 1, oSub = o, nameY = null) {
-  const [cx] = factoryCentre(L), out = [];
-  if (o > 0.003) out.push(text(name, [cx, L.base + (nameY ?? (sub ? 1.05 : 0.75))], { size: 3.0, weight: 500, o }));
-  if (sub && oSub > 0.003) out.push(text(sub, [cx, L.base + 0.42], { size: 2.6, o: oSub }));
+  const [cx] = factoryCentre(L), s = scaleOf(L), out = [];
+  if (o > 0.003) out.push(text(name, [cx, L.base + (nameY ?? (sub ? 1.05 : 0.75)) * s], { size: 3.0 * s, weight: 500, o }));
+  if (sub && oSub > 0.003) out.push(text(sub, [cx, L.base + 0.42 * s], { size: 2.6 * s, o: oSub }));
   return out;
 }
 
 // ---- inside: 16 lights, one per survey question, a row per area (names on the left); each area lit to the score ----
-export const SCORE_LIGHTS = { rows: [0.86, 0.55, 0.24], nameX: 1.3, x: 1.52, pitch: 0.2, r: 0.85, nameY: 1.24 };
+// at scale 1 (frame units from the lane's corner; r and the area names' size in U); everything grows with the lane
+export const SCORE_LIGHTS = { rows: [0.86, 0.55, 0.24], nameX: 1.36, x: 1.58, pitch: 0.2, r: 0.85, nameY: 1.24, size: 2.4 };
 export function scoreLightsAt(L) {                    // [{x, y, area, i}] for the 16 lights
-  const S = SCORE_LIGHTS, out = [];
-  MOPS_AREAS.forEach((a, ai) => { for (let i = 0; i < a.n; i++) out.push({ x: L.x0 + S.x + i * S.pitch, y: L.base + S.rows[ai], area: ai, i }); });
+  const S = SCORE_LIGHTS, s = scaleOf(L), out = [];
+  MOPS_AREAS.forEach((a, ai) => {
+    for (let i = 0; i < a.n; i++) out.push({ x: L.x0 + (S.x + i * S.pitch) * s, y: L.base + S.rows[ai] * s, area: ai, i });
+  });
   return out;
 }
 // score: the plant's 0-1 score; fill: 0..1, how far the lights have filled toward it; names: area labels.
 export function scoreLights(L, score, fill, o = 1, { color = PAL.amber, names = true } = {}) {
   if (o <= 0.003) return [];
+  const S = SCORE_LIGHTS, s = scaleOf(L), r = S.r * s;
   const pts = scoreLightsAt(L), lit = MOPS_AREAS.map(a => gauge(score * clamp01(fill), a.n)), out = [];
   for (const p of pts) {
     const v = lit[p.area][p.i];
-    out.push(circle([p.x, p.y], { r: SCORE_LIGHTS.r, fill: '#000', fo: 1, stroke: '#6A6A6A', w: 0.14, o }));
-    if (v > 0.01) out.push(circle([p.x, p.y], { r: SCORE_LIGHTS.r, fill: color, fo: 0.25 + 0.75 * v, stroke: color, w: 0.14, o: o * Math.max(0.35, v), glow: v > 0.5 }));
+    out.push(circle([p.x, p.y], { r, fill: '#000', fo: 1, stroke: '#8A8A8A', w: 0.14, o })); // an unlit question still shows
+    if (v > 0.01) out.push(circle([p.x, p.y], { r, fill: color, fo: 0.25 + 0.75 * v, stroke: color, w: 0.14, o: o * Math.max(0.35, v), glow: v > 0.5 }));
   }
-  if (names) MOPS_AREAS.forEach((a, ai) => out.push(text(a.name, [L.x0 + SCORE_LIGHTS.nameX, L.base + SCORE_LIGHTS.rows[ai]], { anchor: 'end', size: 2.4, o })));
+  if (names) MOPS_AREAS.forEach((a, ai) => out.push(text(a.name, [L.x0 + S.nameX * s, L.base + S.rows[ai] * s], { anchor: 'end', size: S.size * s, o })));
   return out;
 }

@@ -15,6 +15,7 @@ import { SECTOR_HEX, hexToRgb } from '../colors.js';
 import { TITLES, SOURCES, go, dur, sectorLegend } from './common.js';
 import { industryViews, BARS_RANGE } from './q2.js';
 import { fitForces, barFor, nextLevel, LEVELS, fmtPct, pressPath, clickValue, strongest, pickTop } from '../concepts/forces.js';
+import { swingStats } from '../concepts/swings.js';
 
 // ---------------- the cross (chart-frame coordinates) ----------------
 const ORDER = ['rivalry', 'buyers', 'suppliers', 'entrants', 'substitutes']; // arrival order: rivalry first
@@ -183,7 +184,7 @@ export function q2Concepts(ctx) {
     const base = BT.A * p.base + BT.B, top = BT.A * p.top + BT.B;
     return { x: p.x, half: p.width / 2, base, h: top - base };
   })();
-  const flatLabelAt = [V.c[AIR.k] - textW('Airlines', 1.45) / 2, -3.21];
+  const flatLabelAt = [V.c[AIR.k] - textW('Airlines', 1.45) / 2, -3.21 - V.labelDrop(AIR.k) * U]; // its name under the bar
 
   // which of these beats drew last (to continue smoothly from it), and what it drew
   const seen = { id: null, at: 0, shapes: [] };
@@ -313,7 +314,7 @@ export function q2Concepts(ctx) {
     const p = V.F.plates[k], base = BT.A * p.base + BT.B, top = BT.A * p.top + BT.B;
     return { x: p.x, half: p.width / 2, base, h: top - base };
   };
-  const labelAt = k => [V.c[k] - textW(q2.industries[k].industry, 1.45) / 2, -3.21];
+  const labelAt = k => [V.c[k] - textW(q2.industries[k].industry, 1.45) / 2, -3.21 - V.labelDrop(k) * U]; // (alternate names a row lower)
   let pick = { k: null, at: 0, user: null }, pickBack = null, pickShapes = [];
   const pickClock = () => (performance.now() - pick.at) / 1000;
   const pickStrengths = (P, t) => Object.fromEntries(ORDER.map(f => {
@@ -444,13 +445,7 @@ export function q2Concepts(ctx) {
   const TAGS = SHOCKS.map((S, j) => S.tags.map(tg => tagPlace(S, tg, SHOCK_K[j])).filter(Boolean));
   // the end view: each industry's 2001-25 average (dim outline) and its typical swing, ±1 standard deviation
   // of the yearly average (how cyclical the industry is, not how much its firms differ)
-  const CYC = q2.industries.map(ind => {
-    const v = [];
-    for (let yr = CYCLE_YEARS[0]; yr <= CYCLE_YEARS[1]; yr++) { const x = valueAt(ind.industry, yr); if (x != null) v.push(x); }
-    if (v.length < 3) return null;
-    const m = v.reduce((a, b) => a + b, 0) / v.length;
-    return { m, sd: Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length - 1)) };
-  });
+  const CYC = swingStats(q2, CYCLE_YEARS); // the same numbers as Q2's swings (q2-swings, src/concepts/swings.js)
   function cycleShapes(o) {
     if (o <= 0.003) return [];
     const out = [], fy = v => ST.A * roaToY(v).y + ST.B, dim = '#D8D8D8';
@@ -602,7 +597,7 @@ export function q2Concepts(ctx) {
         ctx.overlay.reset({ title: TITLES.q2, source: SRC_SHIFTS });
         ctx.overlay.legend(sectorLegend(q2.industries));
         ctx.overlay.axis({ label: 'Return on assets', ticks: SHIFT_TICKS });
-        ctx.overlay.year(periodLabel(0));
+        ctx.overlay.year(periodLabel(0), 'inset'); // inside the chart's empty lower right, clear of the names
         ctx.allowOrbit = false;
         ctx.world.setGlow(0.3);
         go(ctx, SHOTS.flat, 900, instant);
@@ -614,7 +609,7 @@ export function q2Concepts(ctx) {
       frame(c) {
         if (c <= 1e-6 && ctx.world.busy()) return; // let the bars arrive first
         setPlates(platesAt(c), 0);
-        ctx.overlay.year(shownPeriod(c));
+        ctx.overlay.year(shownPeriod(c), 'inset');
         if (c >= P - 1 - 1e-6) { if (endAt == null) endAt = performance.now(); } else endAt = null;
       },
       draw: t => {

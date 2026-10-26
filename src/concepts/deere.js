@@ -419,33 +419,59 @@ export function bandLayout(st) {
     title: [(x0 + x1) / 2 - 0.9, y1] };
 }
 
+// ---------- the partner count (q4-grow: one big number beside the year) ----------
+// Partners on the map in the counter's year: ties begun and not yet ended, acquisitions included (the startup
+// band is not counted). The counter rounds the clock, so the count turns with it.
+export function partnerCount(data, year) {
+  const Y = Math.round(year);
+  return data.partners.filter(p => p.start <= Y && (p.end == null || p.end >= Y)).length;
+}
+// Right-aligned with the year counter (#year: right 4.2%, bottom 3.2%, 7.5 U), just above it: the number as big as
+// the year, the word under it. COUNT_BOX is the room they take (frame units), clear of the map at every moment.
+export const COUNT = { x: 7.328, numY: -2.47, labelY: -3.0, numSize: 7.5, labelSize: 2.6, word: 'partners' };
+const halfH = sizeU => sizeU * 0.09 * 0.55;
+export const COUNT_BOX = [
+  COUNT.x - Math.max(textWidth('00', COUNT.numSize), textWidth(COUNT.word, COUNT.labelSize)),
+  COUNT.labelY - halfH(COUNT.labelSize), COUNT.x, COUNT.numY + halfH(COUNT.numSize)];
+
 // ---------- industries (q4-industries) ----------
+// The 2026 partners regroup by home industry: big bold headers, one dot per partner (so each column shows how
+// crowded it is), and only the best-known partner of each industry (star) named.
+const PAL_LIME = '#9BE15D'; // Deere's own (PAL.deere)
 export const INDUSTRIES = [
-  { label: 'Farm software', cards: [1] },
-  { label: 'Satellite internet', cards: [2] },
-  { label: 'AI models', cards: [3] },
-  { label: 'Crop inputs', cards: [4] },
-  { label: 'Farm equipment', cards: [5], deere: true },
-  { label: 'Sustainability programs', cards: [6] },
-  { label: 'Dairy equipment', cards: [7] },
-  { label: 'Smallholder services', cards: [8] },
-  { label: 'Remote sensing', cards: [9] },
-  { label: 'Construction equipment', cards: [10] },
+  { label: 'Farm software', cards: [1], star: 'E008' },
+  { label: 'Satellite internet', cards: [2], star: 'E004' },
+  { label: 'AI models', cards: [3], star: 'E005' },
+  { label: 'Crop inputs', cards: [4], star: 'E009' },
+  { label: 'Farm equipment', cards: [5], deere: true, star: 'E031' },
+  { label: 'Sustainability programs', cards: [6], star: 'E025' },
+  { label: 'Dairy equipment', cards: [7], star: 'E027' },
+  { label: 'Smallholder services', cards: [8], star: 'E037' },
+  { label: 'Remote sensing', cards: [9], star: 'E015' },
+  { label: 'Construction equipment', cards: [10], star: 'E038' },
 ];
 export const SHORT = {
-  E003: 'Connected software firms', E006: 'Agrian / TELUS', E008: 'Climate FieldView', E017: 'Precision Planting',
-  E004: 'Starlink', E009: 'BASF', E010: 'Yara', E011: 'Corteva', E012: 'Kinze',
-  E013: 'Ag Leader', E024: 'Field to Market', E025: 'Cargill', E026: 'Soil and Water Fund',
-  E028: 'Dairy Data Warehouse', E001: 'NavCom', E031: 'Blue River', E032: 'Bear Flag', E035: 'GUSS',
+  E008: 'Bayer', E004: 'Starlink', E009: 'BASF', E025: 'Cargill', E031: 'Blue River',
 };
-export const IND = { top: 2.78, nodeY: 1.5, itemY0: 1.1, itemH: 0.335, bandTop: 2.42, bandBot: -2.3,
-  nameSize: 1.3, labelSize: 1.6, x0: -7.85, x1: 7.85, gap: 0.06 };
+// frame units, sizes in U. Headers: one word per line, centred at headY. Items run down a spine from itemY0.
+export const IND = { x0: -7.85, x1: 7.85, gap: 0.06, side: 0.06,
+  headSize: 3.0, headWeight: 700, headY: 2.95,
+  nodeY: 1.65, nodeH: 0.5, nodePad: 0.08, deereSize: 2.2,
+  itemY0: 1.12, dotH: 0.38, dotR: 0.1, dotX: 0.15, nameSize: 2.4, nameDX: 0.24, insideGap: 0.16,
+  arc0: 0.12, arcStep: 0.06, minSlack: 0.04 };
+const lineH = sizeU => sizeU * 0.09 * 1.18;
 
 export function industryLayout(data, year = 2026) {
   const st = deereState(data, year);
   const shortName = q => SHORT[q.id] || q.name;
   const cols = INDUSTRIES.map(ind => {
     const items = [];
+    if (ind.deere) {                                  // Deere's own: its acquisitions, inside
+      for (const id of st.groups.flatMap(g => g.members)) {
+        const q = st.byId.get(id);
+        if (q.inBox > 0.5) items.push({ id, name: shortName(q), color: PAL_LIME, inside: true });
+      }
+    }
     for (const key of ind.cards) {
       const c = st.cards[key];
       if (!c) continue;
@@ -454,33 +480,64 @@ export function industryLayout(data, year = 2026) {
         if (q.out > 0.5) items.push({ id, name: shortName(q), color: c.color });
       }
     }
-    let inside = [];
-    if (ind.deere) {
-      inside = st.groups.flatMap(g => g.members).map(id => st.byId.get(id)).filter(q => q.inBox > 0.5)
-        .map(q => ({ id: q.id, name: shortName(q), color: '#9BE15D', inside: true }));
-    }
-    return { ...ind, items: [...inside, ...items] };
+    const k = items.findIndex(it => it.id === ind.star);
+    if (k > 0) items.unshift(...items.splice(k, 1));  // the best-known leads its column
+    if (k >= 0) items[0].star = true;
+    return { ...ind, items };
   });
-  const need = cols.map(c => Math.max(1.15, ...c.items.map(it => textWidth(it.name, IND.nameSize) + 0.5),
-    c.deere ? textWidth('JOHN DEERE', 1.8, true) + 0.5 : 0));
-  const span = IND.x1 - IND.x0 - IND.gap * (cols.length - 1);
-  const extra = (span - need.reduce((a, b) => a + b, 0)) / cols.length;
-  let x = IND.x0;
-  return {
-    columns: cols.map((c, i) => {
-      const w = need[i] + extra, x0 = x, x1 = x + w;
-      x = x1 + IND.gap;
-      const dotX = x0 + 0.24;
-      let yy = IND.itemY0;
-      const items = c.items.map((it, j) => {
-        if (j > 0 && c.items[j - 1].inside && !it.inside) yy -= 0.16; // rivals sit below Deere's own
-        const at = [dotX, yy];
-        yy -= IND.itemH;
-        return { ...it, dot: at, text: [dotX + 0.17, at[1]], size: IND.nameSize };
-      });
-      const lines = wrapTo(c.label, w - 0.12, IND.labelSize);
-      return { label: lines.join('\n'), lines: lines.length, x0, x1, xc: (x0 + x1) / 2, dotX, items, deere: !!c.deere,
-        node: [dotX, IND.nodeY] };
-    }),
+
+  // widths: each column's longest header word, its named partner (on one line where the frame allows, else its
+  // longest word) or Deere's node; what is left is shared out evenly
+  const headLines = c => c.label.split(/\s+/);
+  const nameX = IND.dotX + IND.nameDX;
+  const jdW = textWidth('JOHN DEERE', IND.deereSize, true) + 0.1 + 2 * IND.nodePad;
+  const base = cols.map(c => Math.max(...headLines(c).map(w => textWidth(w, IND.headSize, true) + 2 * IND.side),
+    c.deere ? jdW : 0));
+  const starW = (c, whole) => {
+    const star = c.items.find(it => it.star);
+    if (!star) return 0;
+    return nameX + Math.max(...(whole ? [star.name] : star.name.split(/\s+/)).map(w => textWidth(w, IND.nameSize))) + 0.03;
   };
+  const span = IND.x1 - IND.x0 - IND.gap * (cols.length - 1), room = span - IND.minSlack * cols.length;
+  const need = cols.map((c, i) => Math.max(base[i], starW(c, true)));
+  const total = () => need.reduce((a, b) => a + b, 0);
+  const longest = cols.map((c, i) => i).sort((a, b) => starW(cols[b], true) - starW(cols[a], true));
+  for (const i of longest) {                                  // break the longest names first, only as needed
+    if (total() <= room) break;
+    need[i] = Math.max(base[i], starW(cols[i], false));
+  }
+  const extra = (span - total()) / cols.length;
+  const eqIdx = cols.findIndex(c => c.deere);
+  let x = IND.x0, node = null;
+  const columns = cols.map((c, i) => {
+    const w = need[i] + extra, x0 = x, x1 = x + w, xc = (x0 + x1) / 2;
+    x = x1 + IND.gap;
+    const dotX = x0 + IND.dotX;
+    if (c.deere) {
+      const rect = [x0 + IND.nodePad, IND.nodeY - IND.nodeH / 2, x1 - IND.nodePad, IND.nodeY + IND.nodeH / 2];
+      node = { rect, at: [(rect[0] + rect[2]) / 2, IND.nodeY], size: IND.deereSize };
+    }
+    let yy = IND.itemY0;
+    const lh = lineH(IND.nameSize);
+    const items = c.items.map((it, j) => {
+      if (j > 0 && c.items[j - 1].inside && !it.inside) yy -= IND.insideGap; // rivals sit below Deere's own
+      const out = { ...it, dot: [dotX, yy], size: IND.nameSize };
+      if (it.star) {
+        const lines = wrapTo(it.name, x1 - 0.03 - (x0 + nameX), IND.nameSize);
+        out.lines = lines;
+        out.text = [x0 + nameX, yy - ((lines.length - 1) * lh) / 2]; // first line beside the dot
+        yy -= (lines.length - 1) * lh;
+      }
+      yy -= IND.dotH;
+      return out;
+    });
+    return { label: c.label, deere: !!c.deere, x0, x1, xc, dotX, node: [dotX, IND.nodeY], items,
+      color: items[0]?.color || '#FFFFFF',
+      head: { lines: headLines(c), at: [xc, IND.headY], size: IND.headSize, weight: IND.headWeight } };
+  });
+  // Deere's threads to every other industry: nested arcs over the columns, higher the farther they reach
+  const from = [node.at[0], node.rect[3]];
+  const threads = columns.map((c, j) => (c.deere ? null
+    : { j, from, to: c.node, top: node.rect[3] + IND.arc0 + IND.arcStep * Math.abs(j - eqIdx) })).filter(Boolean);
+  return { columns, node, threads };
 }

@@ -21,6 +21,9 @@ export function bindControls({ stage, director, ctx, onReset, onJump = i => dire
   document.body.append(black);
 
   addEventListener('keydown', e => {
+    // a clicker's "start slideshow" button sends F5 (or Shift+F5), which in a browser reloads the page and
+    // would send the app back to its start: ignore it
+    if (e.key === 'F5') { e.preventDefault(); return; }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     if (sorter && sorter.isOpen()) { // while the sorter is up, only O and Esc do anything

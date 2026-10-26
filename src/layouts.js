@@ -243,7 +243,13 @@ export function stopClock(clock, stops, hold = 0.65) {
 // ---------------- Q7: cohorts over time ----------------
 const TAG_RGB = { top: hexToRgb(TAG.top), bottom: hexToRgb(TAG.bottom), middle: hexToRgb(TAG.middle) };
 
-export function cohortAt(q7c, offset, { xMax = FRAME.xMin + 7.4, seed = 29, radius = 0.045, range = null } = {}) {
+// How a cohort's firm looks, by its group: the fifths in their colours, the middle smaller and fainter
+// (weight scales its opacity). cohortAt takes another look to restyle the scatter (all one colour, say).
+export const COHORT_LOOK = (group, radius) => (group === 'middle'
+  ? { color: TAG_RGB.middle, size: radius * 0.8, weight: 0.4 }
+  : { color: TAG_RGB[group], size: radius, weight: 1 });
+
+export function cohortAt(q7c, offset, { xMax = FRAME.xMin + 7.4, seed = 29, radius = 0.045, range = null, look = COHORT_LOOK } = {}) {
   const i0 = Math.floor(offset), f = offset - i0;
   const Y = range ? v => roaToY(Math.max(range[0], Math.min(range[1], v))).y : v => roaToY(v).y; // keep dots on the chart
   const agents = new Map();
@@ -259,10 +265,9 @@ export function cohortAt(q7c, offset, { xMax = FRAME.xMin + 7.4, seed = 29, radi
       const v = v0 == null ? 0 : v1 == null ? v0 : v0 + (v1 - v0) * f;
       alpha *= clamp01(1 - Math.max(0, range[0] - v, v - range[1]) / 0.03);
     }
-    const weight = firm.group === 'middle' ? 0.4 : 1;
+    const L = look(firm.group, radius);
     agents.set(firm.permco, agent({
-      x, y, z: 0, size: firm.group === 'middle' ? radius * 0.8 : radius,
-      color: TAG_RGB[firm.group], alpha: alpha * weight, group: firm.group,
+      x, y, z: 0, size: L.size, color: L.color, alpha: alpha * L.weight, group: firm.group,
     }));
   }
   return { agents };

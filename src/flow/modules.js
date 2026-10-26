@@ -1,6 +1,8 @@
 // The app's modules: named runs of moves you can put anywhere in running_order.json (app folder).
 //   moves   move ids in order; `prefix-*` takes every move starting with prefix- (as the app builds them)
 //   except  move ids to leave out of a pattern
+//   hide    move ids not to play, like hidden slides in PowerPoint: they stay built (and play in any other module
+//           that names them); take an id off the list to bring it back
 //   prelude the "you are here" opening: key = a question (q1-q7) or a landscape stage
 //           (conditions, creating, industry, position, rivals, real, results); label = text under the lit stage
 //   card    a title card instead of moves: {text, sub}
@@ -22,20 +24,26 @@ export const MODULES = {
   close: { title: 'Loop and four questions', moves: ['map-loop', 'map-end'] },
 
   // ---- the six questions: data only (q6 and q7 are shown as Q5 and Q6) ----
-  q1: { title: 'Q1 Commanding heights', moves: ['q1-*'], except: ['q1-fate'], prelude: { key: 'q1' },
-    insight: INSIGHTS.q1 },
+  // Each opens on its question alone, big and centred, then the question in the header (its opening move, qN-ask:
+  // src/scenes/ask.js), instead of a "you are here"; `qN-*` picks the opening up first (main.js registers it first).
+  q1: { title: 'Q1 Commanding heights', moves: ['q1-*'], except: ['q1-fate'], insight: INSIGHTS.q1 },
   // set aside (24 Oct): what became of 1970's top ten; kept as an optional extra, in the 'everything' order only
   'q1-fate': { title: "Q1 extra: what became of 1970's top ten", moves: ['q1-fate'], prelude: { key: 'q1' } },
-  q2: { title: 'Q2 Does industry matter?', moves: ['q2-scramble', 'q2-arrive', 'q2-color', 'q2-glide', 'q2-flat', 'q2-shifts'], prelude: { key: 'q2' },
+  q2: { title: 'Q2 Does industry matter?',
+    moves: ['q2-ask', 'q2-scramble', 'q2-arrive', 'q2-color', 'q2-glide', 'q2-flat', 'q2-swings', 'q2-shifts'],
+    hide: ['q2-shifts'], // the time trend plays under Stages (stage-environment) instead
     insight: INSIGHTS.q2 },
-  q3: { title: 'Q3 Does position matter?', moves: ['q3-bars', 'q3-dots', 'q3-spread', 'q3-zoom', 'q3-fin', 'q3-all', 'q3-share', 'q3-share-mp'],
-    prelude: { key: 'q3' }, insight: INSIGHTS.q3 },
-  q4: { title: 'Q4 Are industry lines blurring?', moves: ['q4-*'], prelude: { key: 'q4' }, insight: INSIGHTS.q4 },
+  q3: { title: 'Q3 Does position matter?',
+    moves: ['q3-ask', 'q3-bars', 'q3-dots', 'q3-names', 'q3-spread', 'q3-zoom', 'q3-fin', 'q3-all', 'q3-share', 'q3-share-mp'],
+    hide: ['q3-spread', 'q3-fin'], // the box plot; banks
+    insight: INSIGHTS.q3 },
+  q4: { title: 'Q4 Are industry lines blurring?', moves: ['q4-*'], insight: INSIGHTS.q4 },
   q5: { title: 'Who captures value? (the coalition)', moves: ['q5-coalition'], prelude: { key: 'q5' } },
   // Q5 follows the same two factories throughout: same feed, a free factory, inside (their management scores),
   // the crowd of plants, then the gap lit by what lines up with it
-  q6: { title: 'Q5 Does management matter?', moves: ['q6-plants', 'q6-plants-free', 'q6-inside', 'q6-practices', 'q6-drivers'],
-    prelude: { key: 'q6' }, insight: INSIGHTS.q6 }, // between firms first; the within-firm split is the optional module below
+  q6: { title: 'Q5 Does management matter?', moves: ['q6-ask', 'q6-plants', 'q6-plants-free', 'q6-inside', 'q6-practices', 'q6-drivers'],
+    hide: ['q6-drivers'], // the gap screen: Q5 goes from the crowd of plants to its punchline
+    insight: INSIGHTS.q6 }, // between firms first; the within-firm split is the optional module below
   // set aside (25 Oct): the 90th vs 10th percentile plant in twelve industries; in the 'everything' order only
   'management-industries': { title: 'Q5 extra: twelve industries', moves: ['q6-industries'],
     prelude: { key: 'real', label: 'Twelve industries' } },
@@ -44,7 +52,8 @@ export const MODULES = {
   // set aside (24 Oct): the India management experiment (Bloom et al. 2013); in the 'everything' order only
   'management-experiment': { title: 'Q5 extra: the management experiment', moves: ['q6-experiment'],
     prelude: { key: 'real', label: 'An experiment' } },
-  q7: { title: 'Q6 Does advantage last?', moves: ['q7-*'], except: ['q7-threat', 'q7-all'], prelude: { key: 'q7' },
+  q7: { title: 'Q6 Does advantage last?', moves: ['q7-*'], except: ['q7-threat', 'q7-all'],
+    hide: ['q7-start', 'q7-collapse-1975', 'q7-trace-1975'], // the 1975 run: Q6 plays 2010 only
     insight: INSIGHTS.q7 }, // cohorts shown: see q7.js
 
   // ---- placeholders for parts that live outside the app (for now) ----

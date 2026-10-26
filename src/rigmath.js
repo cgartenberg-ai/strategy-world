@@ -16,6 +16,16 @@ export function camFromParams({ target, az = 0, el = 0, fov = 40, vh = 9 }) {
   };
 }
 
+// Where a world point lands on the 16:9 stage for camera params p, in U (1% of the stage height; x runs 0..177.8),
+// as the app's camera draws it (perspective, looking at the target, up = +y). For layouts that must hold along a move.
+export function projector(p, aspect = 16 / 9) {
+  const c = camFromParams(p), sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
+  const unit = a => { const l = Math.hypot(...a); return a.map(v => v / l); };
+  const f = unit(sub(c.target, c.position)), r = unit([-f[2], 0, f[0]]), u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+  const t = Math.tan((c.fov * Math.PI) / 360);
+  return P => { const v = sub(P, c.position), z = dot(v, f); return [50 * aspect + (dot(v, r) / (z * t)) * 50, 50 - (dot(v, u) / (z * t)) * 50]; };
+}
+
 export function lerpParams(p, q, t) {
   const L = (a, b) => a + (b - a) * t;
   return {

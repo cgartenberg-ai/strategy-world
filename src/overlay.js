@@ -2,6 +2,7 @@
 // Text stays in Helvetica in the DOM; positions are projected from the 3D world every frame.
 
 import { FRAME, roaToY } from './layouts.js';
+import { LABEL, ringU } from './labelfit.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -25,9 +26,11 @@ export function createOverlay(stage, world) {
     title: t => setText(title, t),
     source: s => setText(source, s),
     caption(t) { setText(caption, t); caption.classList.toggle('on', !!t); },
+    // mode: 'live'; 'faint' (big and dim); 'inset' (raised into the chart's lower right, clear of two rows of names)
     year(t, mode = 'live') {
       setText(year, t == null ? '' : String(t));
       year.classList.toggle('faint', mode === 'faint');
+      year.classList.toggle('inset', mode === 'inset');
     },
     legendOpacity(o) { const v = String(Math.round(o * 100) / 100); if (legend.style.opacity !== v) legend.style.opacity = v; },
     legend(items) {
@@ -117,12 +120,12 @@ export function createOverlay(stage, world) {
         const [sx, sy, sz] = L.frame ? world.projectFrame(...L.at) : P(...L.at);
         return { L, sx, sy, sz, ty: sy };
       });
-      const gap = U * 1.9;
+      const gap = U * LABEL.nudge.gap;
       const firms = placed.filter(p => (p.L.anchor || 'right') === 'right').sort((a, b) => a.sy - b.sy);
       for (let i = 1; i < firms.length; i++) {
         for (let j = 0; j < i; j++) {
           const a = firms[j], b = firms[i];
-          if (Math.abs(a.sx - b.sx) < U * 16 && b.ty - a.ty < gap) b.ty = a.ty + gap;
+          if (Math.abs(a.sx - b.sx) < U * LABEL.nudge.near && b.ty - a.ty < gap) b.ty = a.ty + gap;
         }
       }
       for (const { L, sx, sy, sz, ty } of placed) {
@@ -138,15 +141,21 @@ export function createOverlay(stage, world) {
           const [ax] = PW(L.at[0] - L.width / 2, L.at[1], L.at[2]), [bx] = PW(L.at[0] + L.width / 2, L.at[1], L.at[2]);
           el.style.width = `${Math.max(10, bx - ax)}px`;
         } else el.style.width = '';
+        // a ringed dot (a named firm): the ring grows with the dot, and the name starts clear of it (src/labelfit.js)
+        const rr = L.ring ? U * ringU(L.ringR ? Math.abs(P(L.at[0] + L.ringR, L.at[1], L.at[2])[0] - sx) / U : 0) : 0;
+        const side = L.ring ? rr + U * LABEL.gap : U * 1.1;
+        let anchor = L.anchor || 'right';
+        // a name that would run off the stage's right edge goes to the left of its dot instead
+        if (anchor === 'right' && L.ring && !off && sx + side + el.offsetWidth > W - U) anchor = 'left';
         const shift = {
-          right: `translate(${U * 1.1}px, -50%)`, left: `translate(calc(-100% - ${U * 1.1}px), -50%)`,
-          below: `translate(-50%, ${U * 0.6}px)`, above: `translate(-50%, calc(-100% - ${U * 0.5}px))`,
-        }[L.anchor || 'right'];
+          right: `translate(${side}px, -50%)`, left: `translate(calc(-100% - ${side}px), -50%)`,
+          below: `translate(-50%, ${U * (0.6 + (L.drop || 0))}px)`, above: `translate(-50%, calc(-100% - ${U * 0.5}px))`,
+        }[anchor];
         el.style.transform = `translate(${sx}px, ${ty}px) ${shift}`;
         if (L.ring && !off) {
-          const rr = L.ringR ? Math.max(U * 0.95, Math.abs(P(L.at[0] + L.ringR, L.at[1], L.at[2])[0] - sx) + U * 0.45) : U * 0.95; // big dots get a bigger ring
           parts.push(`<circle cx="${sx}" cy="${sy}" r="${rr}" fill="none" stroke="#fff" stroke-width="1.5"/>`);
-          if (Math.abs(ty - sy) > 1) parts.push(`<line x1="${sx + U * 0.7}" y1="${sy}" x2="${sx + U * 1.1}" y2="${ty}" stroke="#fff" stroke-width="1"/>`);
+          const dir = anchor === 'left' ? -1 : 1;
+          if (Math.abs(ty - sy) > 1) parts.push(`<line x1="${sx + dir * rr * 0.8}" y1="${sy}" x2="${sx + dir * side}" y2="${ty}" stroke="#fff" stroke-width="1"/>`);
         }
       }
       for (const [k, el] of pool) if (!seen.has(k)) { el.remove(); pool.delete(k); }

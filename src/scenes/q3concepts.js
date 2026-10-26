@@ -24,13 +24,35 @@ const SOURCE_SHARE_MP = 'Source: Compustat via WRDS, FY2000–25: US non-financi
   + 'industries; our calculation, based on McGahan and Porter (1997). Right: their results, US business segments 1981–94 (covariance ignored).';
 
 // The four parts, bottom to top, in the colours of her McGahan–Porter slide (industry green, firm cyan, year blue).
+// `ink` is the part's number on black: its colour, or a lighter one where the bar's colour is too dark to read.
 const PARTS = [
-  { key: 'year', label: 'Year', color: '#2D7FE0' },
-  { key: 'industry', label: 'Industry', color: '#99CC00' },
-  { key: 'firm', label: 'Firm', color: '#33E0F0' },
-  { key: 'residual', label: 'Unexplained', color: '#5A5A5A' },
+  { key: 'year', label: 'Year', color: '#2D7FE0', ink: PAL.sky },
+  { key: 'industry', label: 'Industry', color: '#99CC00', ink: '#99CC00' },
+  { key: 'firm', label: 'Firm', color: '#33E0F0', ink: '#33E0F0' },
+  { key: 'residual', label: 'Unexplained', color: '#5A5A5A', ink: PAL.white },
 ];
+// type on the breakdown screens, for a room of 200 (U = 1% of the stage height)
+const TYPE = { head: 3.0, column: 2.6, pct: 4.0, word: 2.6, key: 2.6 };
+const LABEL_GAP = TYPE.pct * 0.09 * 1.2; // frame units between two numbers' centres (1 U = 0.09 frame units)
 const ILLUSTRATIVE = 'Illustrative';
+
+// McGahan and Porter's bar, bottom to top. Their business-unit and corporate shares show as one firm block
+// (our "firm" is the whole company); the data keep both.
+export function mpBlocks(mp) {
+  return [
+    { key: 'year', v: mp.year },
+    { key: 'industry', v: mp.industry },
+    { key: 'firm', v: mp.corporate + mp.business_unit },
+    { key: 'residual', v: mp.residual },
+  ];
+}
+
+// Label heights, bottom to top: each sits at its own height, or just clear of the one below it.
+export function stackLabels(ys, gap) {
+  const out = [];
+  ys.forEach((y, i) => out.push(i ? Math.max(y, out[i - 1] + gap) : y));
+  return out;
+}
 
 // ---------------- value stick layout (frame coordinates) ----------------
 const XR = 0.4, XL = -4.4, SW = 2.2;          // the stick (right) and the dimmed reference copy (left)
@@ -118,17 +140,19 @@ export function q3Concepts(ctx) {
   const shareMoves = stager([
     [0, inst => ctx.world.setTargets(SB.agents, { duration: inst ? 0 : 2100, stagger: 0.55 })],
   ]);
-  const bandColor = part => (part.key === 'residual' ? PAL.grey : part.color);
-  // where a band's number sits: mid-band, or just above a thin band
-  const bandAt = i => {
-    const small = SB.ys[i + 1] - SB.ys[i] < 0.35;
-    return { small, y: small ? SB.ys[i + 1] + 0.05 : (SB.ys[i] + SB.ys[i + 1]) / 2 };
-  };
+  // each band's number sits mid-band, nudged up where a thin band would crowd the one above
+  const mids = (ys0, hs) => hs.map((h, i) => ys0[i] + h / 2);
+  const OUR_Y = stackLabels(mids(SB.ys, PARTS.map((_, i) => SB.ys[i + 1] - SB.ys[i])), LABEL_GAP);
+  const MPB = mpBlocks(MP).map((m, i) => ({ ...m, part: PARTS[i] }));
+  const MP_H = MPB.map(m => m.v * (SB.y1 - SB.y0));
+  const MP_Y0 = MP_H.map((_, i) => SB.y0 + MP_H.slice(0, i).reduce((s, h) => s + h, 0)); // each block's bottom
+  const MP_Y = stackLabels(mids(MP_Y0, MP_H), LABEL_GAP);
   // our bar's frame, dividers and label, shifted by dx
   function barFrame(out, dx, o) {
     const { x0, x1, y0, y1, ys } = SB, pad = 0.09;
     out.push(rect([x0 + dx - pad, y0 - pad], [x1 + dx + pad, y1 + pad], { stroke: PAL.white, w: 0.14, o: 0.6 * o }));
-    out.push(text(`US firms, ${DEC.window ? DEC.window.join('–') : '2000–2025'}`, [(x0 + x1) / 2 + dx, y1 + 0.42], { size: 1.6, o }));
+    out.push(text(`US firms, ${DEC.window ? DEC.window.join('–') : '2000–2025'}`, [(x0 + x1) / 2 + dx, y1 + 0.45],
+      { size: TYPE.column, color: PAL.white, o }));
     for (let i = 1; i < PARTS.length; i++) {
       out.push(...glowLine([x0 + dx - pad, ys[i]], [x1 + dx + pad, ys[i]], { color: PAL.white, w: 0.14, o: 0.7 * o }));
     }
@@ -136,15 +160,16 @@ export function q3Concepts(ctx) {
   // each band's share and name to the right of our bar; opacity(i) per band
   function sideLabels(out, dx, opacity) {
     PARTS.forEach((part, i) => {
-      const { small, y } = bandAt(i), o = opacity(i), x = SB.x1 + dx;
+      const y = OUR_Y[i], o = opacity(i), x = SB.x1 + dx;
       if (o <= 0) return;
-      out.push(text(pct(DEC[part.key]), [x + 1.45, y], { anchor: 'end', size: small ? 1.8 : 3.0, weight: 500, color: bandColor(part), o }));
-      out.push(text(part.label, [x + 1.7, y], { anchor: 'start', size: small ? 1.8 : 2.2, color: PAL.white, o }));
+      out.push(text(pct(DEC[part.key]), [x + 1.55, y], { anchor: 'end', size: TYPE.pct, weight: 500, color: part.ink, o }));
+      out.push(text(part.label, [x + 1.8, y], { anchor: 'start', size: TYPE.word, color: PAL.white, o }));
     });
   }
+  const heading = (x, o) => text('Differences in firm returns', [x, SB.y1 + 0.95], { size: TYPE.head, color: PAL.white, o });
   function drawShare(t) {
     const f = ramp(t, 2.4, 0.9), out = [];
-    out.push(text('Differences in firm returns', [(SB.x0 + SB.x1) / 2, SB.y1 + 1.0], { size: 1.9, color: PAL.white, o: f }));
+    out.push(heading((SB.x0 + SB.x1) / 2, f));
     barFrame(out, 0, f);
     sideLabels(out, 0, i => ramp(t, 3.0 + i * 0.3, 0.7));
     return out;
@@ -152,47 +177,35 @@ export function q3Concepts(ctx) {
   // our bar slides left, its labels move to its left side, and McGahan–Porter's bar grows beside it
   function drawCompare(t) {
     const k = ramp(t, 0, 1.3), dx = DX * k, out = [];
-    const { y0, y1 } = SB, H = y1 - y0;
-    const center = mix((SB.x0 + SB.x1) / 2, (SB.x0 + DX + MX1) / 2, k);
-    out.push(text('Differences in firm returns', [center, y1 + 1.0], { size: 1.9, color: PAL.white }));
+    const { y1 } = SB;
+    out.push(heading(mix((SB.x0 + SB.x1) / 2, (SB.x0 + DX + MX1) / 2, k), 1));
     barFrame(out, dx, 1);
     const fade = 1 - ramp(t, 0, 0.45);
     sideLabels(out, dx, () => fade);
     const g = ramp(t, 1.1, 0.6);
     PARTS.forEach((part, i) => {
-      const { small, y } = bandAt(i);
-      out.push(text(pct(DEC[part.key]), [SB.x0 + dx - 0.35, y], { anchor: 'end', size: small ? 1.7 : 3.0, weight: 500,
-        color: bandColor(part), o: g }));
+      out.push(text(pct(DEC[part.key]), [SB.x0 + dx - 0.35, OUR_Y[i]], { anchor: 'end', size: TYPE.pct, weight: 500,
+        color: part.ink, o: g }));
     });
-    // McGahan–Porter: a solid bar that grows segment by segment
-    const mp = [
-      { key: 'year', v: MP.year, color: PARTS[0].color },
-      { key: 'industry', v: MP.industry, color: PARTS[1].color },
-      { key: 'firm', v: MP.corporate, color: '#1F9EAB', tag: 'corporate' },
-      { key: 'firm', v: MP.business_unit, color: PARTS[2].color, sub: 'Business unit' },
-      { key: 'residual', v: MP.residual, color: PARTS[3].color },
-    ];
-    out.push(text('McGahan & Porter, 1981–94', [(MX0 + MX1) / 2, y1 + 0.42], { size: 1.6, o: ramp(t, 1.5, 0.6) }));
-    let y = y0;
-    mp.forEach((m, i) => {
-      const grow = ramp(t, 1.7 + i * 0.25, 0.5), h = m.v * H * grow;
-      if (h > 0.001) {
-        const res = m.key === 'residual', big = m.v * H > 0.42;
-        out.push(rect([MX0, y], [MX1, y + h], { fill: m.color, fo: res ? 0.18 : 0.55, stroke: m.color, w: 0.1, o: grow, glow: !res }));
-        out.push(text(m.tag ? `${pct(m.v)} ${m.tag}` : pct(m.v), [MX1 + 0.35, big ? y + h / 2 : y + h + 0.05], { anchor: 'start',
-          size: big ? 3.0 : 1.7, weight: 500, color: res ? PAL.grey : m.tag ? PARTS[2].color : m.color, o: grow }));
-        if (m.sub && big) out.push(text(m.sub, [(MX0 + MX1) / 2, y + h / 2], { size: 1.25, color: '#000', weight: 600, o: grow }));
-      }
-      y += m.v * H;
+    // McGahan–Porter: a solid bar that grows block by block (firm is one block: business unit + corporate)
+    out.push(text('McGahan & Porter, 1981–94', [(MX0 + MX1) / 2, y1 + 0.45], { size: TYPE.column, color: PAL.white,
+      o: ramp(t, 1.5, 0.6) }));
+    MPB.forEach((m, i) => {
+      const grow = ramp(t, 1.7 + i * 0.3, 0.5), y = MP_Y0[i], h = MP_H[i] * grow;
+      if (h <= 0.001) return;
+      const res = m.key === 'residual';
+      out.push(res // the unexplained block: outlined in white like our bar's frame, so it reads on black
+        ? rect([MX0, y], [MX1, y + h], { fill: m.part.color, fo: 0.3, stroke: PAL.white, w: 0.14, o: 0.6 * grow })
+        : rect([MX0, y], [MX1, y + h], { fill: m.part.color, fo: 0.55, stroke: m.part.color, w: 0.1, o: grow, glow: true }));
+      out.push(text(pct(m.v), [MX1 + 0.35, MP_Y[i]], { anchor: 'start', size: TYPE.pct, weight: 500, color: m.part.ink, o: grow }));
     });
     // one key for both bars, at the right
-    const kx = 5.0, gk = ramp(t, 3.0, 0.8);
+    const kx = 5.0, gk = ramp(t, 3.0, 0.8), S = 0.2;
     PARTS.slice().reverse().forEach((part, j) => {
-      const ky = y1 - 0.9 - j * 0.75;
-      out.push(rect([kx, ky - 0.17], [kx + 0.34, ky + 0.17], { fill: part.color, fo: part.key === 'residual' ? 0.35 : 0.85,
-        stroke: part.color, w: 0.08, o: gk }));
-      out.push(text(part.key === 'firm' ? 'Firm\n(business unit + corporate)' : part.label, [kx + 0.55, ky], { anchor: 'start',
-        size: 1.6, color: PAL.white, o: gk }));
+      const ky = y1 - 0.9 - j * 0.8, res = part.key === 'residual';
+      out.push(rect([kx, ky - S], [kx + 2 * S, ky + S], { fill: part.color, fo: res ? 0.35 : 0.85,
+        stroke: res ? PAL.white : part.color, w: 0.08, o: gk })); // a white edge: the dark swatch shows on black
+      out.push(text(part.label, [kx + 2 * S + 0.25, ky], { anchor: 'start', size: TYPE.key, color: PAL.white, o: gk }));
     });
     return out;
   }

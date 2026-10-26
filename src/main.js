@@ -19,6 +19,7 @@ import { titleCard, blackPause } from './scenes/cards.js';
 import { VIEWS } from './flow/views.js';
 import { createHubLayer, hubMove } from './hub.js';
 import { createInsightLayer, insightMove } from './insight.js';
+import { createAskLayer, askMoves } from './scenes/ask.js';
 import { testsScene } from './scenes/tests.js';
 import { pestelScene } from './scenes/pestel.js';
 import { q1Scene } from './scenes/q1.js';
@@ -77,7 +78,9 @@ async function boot() {
   const opening = { id: 'map', beats: land.beats.slice(0, 2) }, closing = { id: 'end', beats: land.beats.slice(2) };
   const built = [opening, q1Scene(ctx), withMore(q2Scene(ctx), q2Concepts), withMore(q3Scene(ctx), q3Concepts),
     q4Scene(ctx), q5Scene(ctx), q6Scene(ctx), withMore(q7Scene(ctx), q7Concepts), closing, testsScene(ctx), pestelScene(ctx)];
-  const registry = new Map();
+  // each question's opening (its words alone, then in the header: src/scenes/ask.js) goes in first, so a module's
+  // `q1-*` takes it before the question's own moves
+  const registry = new Map(askMoves(ctx).map(b => [b.id, b]));
   for (const sc of built) for (const b of sc.beats) if (!registry.has(b.id)) registry.set(b.id, b);
   // The running order puts modules (named runs of moves) into sections; the director plays one chapter per module.
   const RO = await loadRunningOrder();
@@ -96,6 +99,7 @@ async function boot() {
   // master views: their tiles, which items have been opened, and where we came from (for the zoom)
   ctx.hubLayer = createHubLayer(stage);
   ctx.insightLayer = createInsightLayer(stage); // the questions' punchlines (src/insight.js)
+  ctx.askLayer = createAskLayer(stage); // the questions' openings (src/scenes/ask.js)
   ctx.visited = new Set();
   ctx.prevScene = null;
   // The "Test data" tag shows only on modules whose bundles are synthetic (moves are named after their question).
@@ -118,6 +122,7 @@ async function boot() {
     ctx.fromBeat = ctx.shownBeat ?? null; // the move on screen before this one (a punchline fades out of it)
     ctx.shownBeat = b;
     if (!b.insight) ctx.insightLayer.hide();
+    if (!b.ask) ctx.askLayer.hide();
     b.enter(instant);
     ctx.instant = false;
   };

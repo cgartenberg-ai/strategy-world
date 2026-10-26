@@ -3,14 +3,14 @@
 // the internalized-capabilities box and the dashed startup band. Pure: layout (+ options) in, shapes out.
 
 import { text, line, rect, circle, ellipse, poly, pill, PAL } from './kit.js';
-import { textWidth, mix, BAND, IND, wrapTo } from './deere.js';
+import { textWidth, mix, BAND, IND, COUNT, wrapTo } from './deere.js';
 
 const LIME = PAL.deere, GREY = '#4A4A4A', CYAN = PAL.cyan, PURPLE = '#9B5CFF', LILAC = '#B98BFF';
 export const GROUP_STYLE = {
   'Positioning & guidance': { color: '#4FB8F0', title: '#FFFFFF', icon: 'pin' },
-  'Sense-and-act AI': { color: '#FF4D4D', title: '#FF6A5C', icon: 'eye' },
-  'Autonomy & robotics': { color: '#A35CFF', title: '#C08BFF', icon: 'robot' },
-  'Remote sensing & analytics': { color: '#3F8FE8', title: '#66BFFF', icon: 'sat' },
+  'Sense-and-act AI': { color: '#FF4D4D', title: '#FFFFFF', icon: 'eye' },        // titles white; the frames keep
+  'Autonomy & robotics': { color: '#A35CFF', title: '#FFFFFF', icon: 'robot' },     // each group's colour
+  'Remote sensing & analytics': { color: '#3F8FE8', title: '#FFFFFF', icon: 'sat' },
 };
 
 const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -178,8 +178,8 @@ function drawBox(L, o, { rowText = 1 } = {}) {
   const [x0, y0, x1, y1] = B.rect, op = o * B.p;
   const out = [rect([x0, y0], [x1, y1], { stroke: '#D8D8D8', w: 0.15, r: 0.9, fill: '#000', fo: 0.85, o: op, glow: true })];
   const to = op * clamp01((B.p - 0.5) / 0.5);
-  out.push(text('INTERNALIZED CAPABILITIES', B.head, { size: B.headSize, weight: 600, o: to }),
-    text('(former partners / acquired capabilities)', B.sub, { size: B.subSize, color: '#BDBDBD', o: to }));
+  // the heading alone, centred in the head (her grey sub-line "(former partners / acquired capabilities)" is gone)
+  out.push(text('INTERNALIZED CAPABILITIES', [B.head[0], (B.head[1] + B.sub[1]) / 2], { size: B.headSize, weight: 600, o: to }));
   const hideGroup = L.navcom && L.navcom.f > 0 ? L.navcom.name : null;
   for (const g of B.groups) {
     if (g.name === hideGroup) continue;
@@ -213,7 +213,7 @@ function drawBand(L, o) {
     const co = o * c.p;
     if (co <= 0.01) continue;
     if (c.sep != null) out.push(line([c.sep, y1 - 0.18], [c.sep, y0 + 0.14], { color: PURPLE, w: 0.13, o: co * 0.7, dash: [0.25, 0.55] }));
-    out.push(text(`${c.year} cohort`, c.header, { size: BAND.headSize, weight: 600, color: LILAC, o: co }));
+    out.push(text(`${c.year} cohort`, c.header, { size: BAND.headSize, weight: 600, o: co }));
     for (const n of c.names) {
       const no = o * n.o;
       if (no <= 0.01) continue;
@@ -262,56 +262,62 @@ export function drawDeere(L, { rv = {}, fade = {} } = {}) {
   return out;
 }
 
+// ---------- the partner count beside the year (q4-grow) ----------
+// One big white number, the word under it, right-aligned with the year counter (COUNT in deere.js).
+export function drawCount(n, o = 1) {
+  if (o <= 0.01) return [];
+  return [text(String(n), [COUNT.x, COUNT.numY], { anchor: 'end', size: COUNT.numSize, weight: 500, color: '#FFFFFF', o }),
+    text(COUNT.word, [COUNT.x, COUNT.labelY], { anchor: 'end', size: COUNT.labelSize, color: '#FFFFFF', o })];
+}
+
 // ---------- industries: the 2026 map regroups into industry columns ----------
-// L: the 2026 layout; I: industryLayout; t: seconds since the beat began.
+// L: the 2026 layout; I: industryLayout; t: seconds into the regroup (0 = the 2026 map, whole).
+// Each row leaves its card as a dot and lands in its industry's column; only the best-known partner of each
+// industry keeps its name, white and big. The big bold headers come in as the dots land; Deere's panel shrinks
+// to a node in Farm equipment and threads out to every other industry. No panels behind the columns.
 export function drawIndustries(L, I, t) {
   const ramp = (a, d) => ease((t - a) / d);
   const out = [];
   const gone = 1 - ramp(0, 0.9);
   out.push(...drawDeere(L, { fade: { connectors: gone, cards: 0, box: 0, band: gone, panel: 0 } }));
-  // card and box frames (with their pills) and Deere's hub lines dissolve while the names fly
+  // card and box frames (with their pills) and Deere's hub lines dissolve while the partners fly
   const frames = 1 - ramp(0.15, 0.9);
   for (const c of L.cards) out.push(...drawCard({ ...c, hl: 0, rows: c.rows.map(r => ({ ...r, hl: 0 })) }, frames, { rowText: 0 }));
   if (L.box.p > 0) out.push(...drawBox({ ...L, navcom: null }, frames, { rowText: 0 }));
-  // faint industry bands and labels (her Q2 columns)
-  const bandsOn = ramp(1.9, 0.9);
+  // the industry headers: they carry the point
+  const heads = ramp(1.6, 0.9);
+  if (heads > 0.01) {
+    for (const c of I.columns) {
+      out.push(text(c.head.lines.join('\n'), c.head.at, { size: c.head.size, weight: c.head.weight, color: '#FFFFFF', o: heads }));
+    }
+  }
+  // Deere: the panel shrinks into its node at the top of Farm equipment
   const eqIdx = I.columns.findIndex(c => c.deere);
-  I.columns.forEach(c => {
-    if (bandsOn <= 0.01) return;
-    const yb = mix(IND.bandTop, IND.bandBot, bandsOn);
-    out.push(rect([c.x0, yb], [c.x1, IND.bandTop], { fill: '#FFFFFF', fo: 0.055, o: 1 }));
-    out.push(line([c.x0 + 0.1, IND.bandTop], [c.x1 - 0.1, IND.bandTop], { color: '#FFFFFF', w: 0.1, o: 0.25 * bandsOn }));
-    const lh = IND.labelSize * 0.09 * 1.18;
-    out.push(text(c.label, [c.xc, IND.top + ((c.lines - 1) * lh) / 2], { size: IND.labelSize, color: '#FFFFFF', o: bandsOn }));
-  });
-  // Deere: the panel shrinks into a glowing node at the top of Farm equipment
-  const eq = I.columns[eqIdx];
-  const pr = [eq.x0 + 0.1, IND.nodeY - 0.25, eq.x1 - 0.1, IND.nodeY + 0.25];
+  const pr = I.node.rect;
   const dm = ramp(0.3, 1.5);
   const [ax0, ay0, ax1, ay1] = L.panel.rect;
   const dr = [mix(ax0, pr[0], dm), mix(ay0, pr[1], dm), mix(ax1, pr[2], dm), mix(ay1, pr[3], dm)];
-  // threads: Deere to every industry, nested arcs above the columns, then down each column
-  I.columns.forEach((c, j) => {
-    if (c.deere) return;
-    const th = ramp(2.7 + 0.12 * Math.abs(j - eqIdx), 0.8);
-    if (th <= 0.01) return;
-    const p0 = [(pr[0] + pr[2]) / 2, pr[3]], p3 = c.node;
-    const top = p0[1] + 1.33 * (0.14 + 0.075 * Math.abs(j - eqIdx)), dx = p3[0] - p0[0];
-    const pts = bezier(p0, [p0[0] + dx * 0.3, top], [p3[0], top], p3, 30, th);
+  // threads: Deere to every industry, nested arcs over the columns, then down each column
+  for (const th of I.threads) {
+    const p = ramp(2.7 + 0.12 * Math.abs(th.j - eqIdx), 0.8);
+    if (p <= 0.01) continue;
+    const dx = th.to[0] - th.from[0];
+    const pts = bezier(th.from, [th.from[0] + dx * 0.3, th.top], [th.to[0], th.top], th.to, 30, p);
     out.push(poly(pts, { stroke: LIME, w: 0.14, o: 0.75, glow: true }));
-    if (th > 0.98) out.push(circle(c.node, { r: 0.5, fill: LIME, o: 1, glow: true }));
-  });
+    if (p > 0.98) out.push(circle(th.to, { r: 0.5, fill: LIME, o: 1, glow: true }));
+  }
   I.columns.forEach((c, j) => {
     const last = c.items[c.items.length - 1];
     const sp = c.deere ? ramp(2.4, 0.6) : ramp(3.4 + 0.12 * Math.abs(j - eqIdx), 0.5);
     if (last && sp > 0.01) {
       const top = c.deere ? pr[1] : c.node[1];
-      out.push(line([c.dotX, top], [c.dotX, mix(top, last.dot[1], sp)], { color: c.deere ? LIME : (c.items[0]?.color || '#FFFFFF'), w: 0.12, o: 0.55 }));
+      out.push(line([c.dotX, top], [c.dotX, mix(top, last.dot[1], sp)], { color: c.deere ? LIME : c.color, w: 0.12, o: 0.55 }));
     }
   });
   out.push(rect([dr[0], dr[1]], [dr[2], dr[3]], { stroke: LIME, w: mix(0.24, 0.2, dm), r: mix(1.1, 0.9, dm), fill: '#000', fo: 0.9, glow: true }));
   out.push(...drawPanel(L, 1 - ramp(0, 0.6), { panel: 0, title: 0, bullets: 0 })); // hub lines fade inside it
-  out.push(text('JOHN DEERE', [(dr[0] + dr[2]) / 2, mix(ay1 - 0.45, IND.nodeY, dm)], { size: mix(4.4, 1.8, dm), weight: 700, color: LIME, glow: true }));
+  out.push(text('JOHN DEERE', [(dr[0] + dr[2]) / 2, mix(ay1 - 0.45, I.node.at[1], dm)], { size: mix(4.4, I.node.size, dm),
+    weight: 700, color: LIME, glow: true }));
   // partners travel from their rows to their industry
   const from = new Map();
   for (const c of L.cards) for (const r of c.rows) if (r.o > 0.5) from.set(r.id, r);
@@ -320,16 +326,25 @@ export function drawIndustries(L, I, t) {
     const src = from.get(it.id);
     if (!src) return;
     const f0 = 0.45 + 0.08 * j + 0.025 * i, f = ramp(f0, 1.5);
-    const at = mixPt(src.text, it.text, f), size = mix(src.size, it.size, f);
     const long = src.lines ? src.lines.join('\n') : src.name;
-    if (long === it.name) out.push(text(it.name, at, { anchor: 'start', size }));
-    else {                                           // long name gives way to the short one mid-flight
-      const swap = clamp01((f - 0.05) / 0.3);
-      if (swap < 1) out.push(text(long, at, { anchor: 'start', size, o: 1 - swap }));
-      if (swap > 0) out.push(text(it.name, at, { anchor: 'start', size, o: swap }));
+    // the dot: it appears at the head of its row as the row leaves, and lands on its column's spine
+    const dotO = clamp01((t - f0) / 0.3);
+    if (dotO > 0.01) {
+      out.push(circle(mixPt([src.text[0] - 0.1, src.text[1]], it.dot, f), { rw: f >= 1 ? IND.dotR : mix(0.05, IND.dotR, f),
+        fill: it.color, o: dotO, glow: true }));
     }
-    const d = ramp(f0 + 1.25, 0.45);
-    if (d > 0.01) out.push(circle(it.dot, { r: 0.6, fill: it.color, o: d, glow: true }));
+    if (it.star) {                                   // the best-known keeps its name: it flies, grows, settles
+      const at = mixPt(src.text, it.text, f), size = mix(src.size, it.size, f), name = it.lines.join('\n');
+      if (long === name) out.push(text(name, at, { anchor: 'start', size, color: '#FFFFFF' }));
+      else {                                         // the row's long name gives way to the short one mid-flight
+        const swap = clamp01((f - 0.05) / 0.3);
+        if (swap < 1) out.push(text(long, at, { anchor: 'start', size, color: '#FFFFFF', o: 1 - swap }));
+        if (swap > 0) out.push(text(name, at, { anchor: 'start', size, color: '#FFFFFF', o: swap }));
+      }
+    } else {                                         // the others: the name fades as the dot leaves with it
+      const o = 1 - clamp01((t - f0) / 0.45);
+      if (o > 0.01) out.push(text(long, mixPt(src.text, [it.dot[0] + IND.nameDX, it.dot[1]], f), { anchor: 'start', size: src.size, o }));
+    }
   }));
   return out;
 }

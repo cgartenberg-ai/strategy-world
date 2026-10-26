@@ -11,7 +11,7 @@ export function expandMoves(patterns, ids, except = []) {
   return out;
 }
 
-// order: [{section, modules: [id, ...]}]; modules: {id: {title, moves, except, prelude, card, hub}};
+// order: [{section, modules: [id, ...]}]; modules: {id: {title, moves, except, hide, prelude, card, hub}};
 // registry: Map move id -> move (beat); makeCard(id, module) builds a title-card move;
 // makeHub(id, module, k, items) builds the master view's move for its k-th showing.
 //
@@ -25,7 +25,11 @@ export function resolveFlow(order, modules, registry, makeCard, makeHub = null, 
   const ids = [...registry.keys()], scenes = [], sections = [], warnings = [];
   const beatsOf = (mid, m) => {
     if (m.card) return [makeCard(mid, m)].filter(Boolean);
-    const beats = expandMoves(m.moves || [], ids, m.except).map(id => registry.get(id));
+    // hide: moves skipped, like hidden slides, once the patterns have expanded (a move hidden here still plays in any
+    // other module that names it)
+    const moves = expandMoves(m.moves || [], ids, m.except), hidden = new Set(m.hide || []);
+    for (const id of hidden) if (!moves.includes(id)) warnings.push(`module "${mid}": hides "${id}", which is not one of its moves`);
+    const beats = moves.filter(id => !hidden.has(id)).map(id => registry.get(id));
     if (m.insight && makeInsight && beats.length) beats.push(makeInsight(mid, m.insight, beats[beats.length - 1]));
     return beats;
   };

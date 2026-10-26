@@ -1,9 +1,11 @@
 // Q1: the commanding heights. Top 50 companies as towers, height = market value in today's dollars;
 // the top ten named. The axis grows when a new record is set, so a crash reads as towers falling.
-// The play steps a decade at a time, holding on each so sectors and sizes can be read, not just churn.
-// Then three call-outs pile up in the upper right, one per move: the top ten's share of market value, the year
-// each leader first listed, intangible assets (q1intangibles.js). Click one to fill the screen; click again to go
-// back. Set aside: what became of 1970's top ten (rank every December; who left and how; click a name to follow it).
+// One thing per click: (the question, centred, then in the header: src/scenes/ask.js) the empty chart; 1970's towers
+// rise; the play steps a decade at a time, holding on each so sectors and sizes can be read, not just churn.
+// Then three small square tiles pile up in the upper right, one per move, each only a short label: the top ten's share
+// of total market value, their age (the year each leader first listed), intangible assets (q1intangibles.js). A mouse
+// click on a tile fills the screen with its chart; another click shrinks it back. Set aside: what became of 1970's
+// top ten (rank every December; who left and how; click a name to follow it).
 
 import { heightsMix, stopClock, HEIGHTS, FRAME, niceTicks, growingAxis } from '../layouts.js';
 import { SHOTS } from '../rigmath.js';
@@ -12,26 +14,27 @@ import { TITLES, SOURCES, pinLabels, go, dur } from './common.js';
 import { PAL } from '../concepts/kit.js';
 import { ramp } from '../anim.js';
 import { fateShapes, fateHeads, fateLabelSpots } from '../concepts/fatesDraw.js';
-import { TITLE as INTAN_QUESTION, CHART as INTAN_CHART, intangiblesShapes, flatToScreen, screenToFlat, curveTo }
-  from './q1intangibles.js';
+import { TITLE as INTAN_QUESTION, intangiblesShapes, flatToScreen, curveTo } from './q1intangibles.js';
 
-// ---------------- the call-outs (pure layout; tests/q1callouts.test.js) ----------------
+// ---------------- the tiles (pure layout; tests/q1callouts.test.js) ----------------
 // Places are fractions of the 16:9 stage from its top left; sizes are U (1% of the stage height).
 const UX = 0.01 * (9 / 16), UY = 0.01; // one U across and down, as a fraction of the stage
 export const CALLOUTS = ['share', 'listed', 'intan']; // top to bottom
-export const CALLOUT_TITLES = { share: "Top ten's share of market value", listed: 'Year first listed',
-  intan: 'Intangible assets' };
+// a closed tile: only its label, short and plain; opened, each chart has its own title (intangibles: its label)
+export const TILE_LABELS = { share: 'Share of total', listed: 'Age', intan: 'Intangibles' };
+const TILE_TEXT = { share: 'Share of\ntotal' }; // where a label breaks to fit its tile
+const TILE_U = 2.4; // label size: as big as "Intangibles" allows in a tile
+export const CALLOUT_TITLES = { share: "Top ten's share of market value", listed: 'Year first listed' };
 export const MOVE_CALLOUTS = { 'q1-share': ['share'], 'q1-young': ['share', 'listed'],
   'q1-intangibles': ['share', 'listed', 'intan'] };
-// One column below the legend row (it reaches about 0.67 across, 0.19 down), right of Eli Lilly's label (about 0.64
-// across) and above the small towers to its right (their tops about 0.70 down); each slot is 14.4 U tall: a title,
-// a 6.6 U chart, its years.
+// Where the call-outs stood: below the legend row (it reaches about 0.67 across, 0.19 down) and above the small towers
+// (their tops about 0.70 down); each slot 14.4 U tall. A tile is a square that tall at the column's right edge.
 export const COLUMN = { x0: 0.645, x1: 0.958, top: 0.21, pitch: 0.156, h: 0.144 };
 export function slotBox(i) {
-  const y0 = COLUMN.top + i * COLUMN.pitch;
-  return { x0: COLUMN.x0, x1: COLUMN.x1, y0, y1: y0 + COLUMN.h };
+  const y0 = COLUMN.top + i * COLUMN.pitch, w = (COLUMN.h / UY) * UX;
+  return { x0: COLUMN.x1 - w, x1: COLUMN.x1, y0, y1: y0 + COLUMN.h };
 }
-// the call-out under a click (stage fractions), among those on screen
+// the tile under a click (stage fractions), among those on screen
 export function calloutAt(ids, fx, fy) {
   for (const id of ids) {
     const b = slotBox(CALLOUTS.indexOf(id));
@@ -39,32 +42,33 @@ export function calloutAt(ids, fx, fy) {
   }
   return null;
 }
-const SLOT = { title: 1.6, top: 4.4, bottom: 11.0, years: 1.7 }; // U from a slot's top: title centre, chart, years
-const TITLE_U = 3.0, YEAR_U = 1.9, NUMBER_U = 2.6; // small call-outs: title, years, key numbers
-const slotY = (i, u) => slotBox(i).y0 + u * UY;
 
-// small (in its slot) and full screen; drawings blend the two as a call-out zooms
-const SHARE_SMALL = { tx: COLUMN.x0, ty: slotY(0, SLOT.title), ts: TITLE_U, x0: COLUMN.x0 + 5.6 * UX,
-  x1: COLUMN.x1 - 6 * UX, y0: slotY(0, SLOT.top), y1: slotY(0, SLOT.bottom), lab: YEAR_U, labOff: SLOT.years,
-  num: NUMBER_U, numUp: 2.0, numOff: 1.0, w: 0.32, dot: 0.55 };
+// the charts, full screen
 const SHARE_BIG = { tx: 0.13, ty: 0.25 - 4.8 * UY, ts: 3.6, x0: 0.13, x1: 0.89, y0: 0.25, y1: 0.81, lab: 2.7,
   labOff: 3.4, num: 3.4, numUp: 3.0, numOff: 2.1, w: 0.74, dot: 1.15 };
-const LIST_SMALL = { tx: COLUMN.x0, ty: slotY(1, SLOT.title), ts: TITLE_U, x0: COLUMN.x0 + 14 * UX,
-  x1: COLUMN.x1 - 1.5 * UX, yA: slotY(1, 5.8), yB: slotY(1, 8.6), y0: slotY(1, SLOT.bottom), gap: 1.2, rs: YEAR_U,
-  lab: YEAR_U, labOff: SLOT.years, tk: 0.5, w: 0.12, r: 0.85, dx: 1.45, dy: 1.1 };
 const LIST_BIG = { tx: 0.13, ty: 0.25 - 4.8 * UY, ts: 3.6, x0: 0.31, x1: 0.9, yA: 0.38, yB: 0.56, y0: 0.72, gap: 1.6,
   rs: 2.7, lab: 2.4, labOff: 3.0, tk: 1.0, w: 0.25, r: 1.8, dx: 3.4, dy: 2.2 };
-const INTAN_SMALL = { x0: COLUMN.x0 + 2.2 * UX, x1: COLUMN.x1 - 6 * UX, y0: slotY(2, SLOT.top), y1: slotY(2, SLOT.bottom) };
-// the small title sits where the full chart's label starts, so one grows into the other
-const INTAN_HEAD = { text: CALLOUT_TITLES.intan, dx: 2.2 * UX * 16, dy: (SLOT.top - SLOT.title) * UY * 9, size: TITLE_U,
-  numbers: NUMBER_U, years: YEAR_U, yearsOff: SLOT.years * UY * 9 };
-const INTAN_DRAW = { start: 0.6, span: 3.5 }; // the small line draws itself a little faster than the full chart did
+const INTAN_DRAW = { start: 0.6, span: 3.5 }; // opened from its tile, the line draws a little faster than on its own
 
-const lerp = (a, b, z) => {
-  const o = {};
-  for (const k in a) o[k] = typeof a[k] === 'number' ? a[k] * (1 - z) + b[k] * z : a[k];
-  return o;
-};
+// Shapes drawn for the full stage, shrunk into a 16:9 box h tall (a fraction of the stage) centred on c; sizes follow.
+// An opening chart grows this way out of its tile.
+function shrinkShapes(shapes, c, h) {
+  const P = ([x, y]) => [c[0] + (x - 0.5) * h, c[1] + (y - 0.5) * h];
+  return shapes.map(s => {
+    const r = { ...s };
+    if (s.at) r.at = P(s.at);
+    if (s.a) r.a = P(s.a);
+    if (s.b) r.b = P(s.b);
+    if (s.pts) r.pts = s.pts.map(P);
+    if (s.k === 'text') r.size = (s.size ?? 1.6) * h;
+    r.w = (s.w ?? (s.k === 'line' ? 0.25 : 0.2)) * h;
+    if (s.k === 'circle') r.r = (s.r ?? 1) * h;
+    if (s.k === 'rect') r.r = (s.r ?? 0) * h;
+    return r;
+  });
+}
+const mixN = (a, b, f) => a + (b - a) * f;
+
 const fade = (shapes, f) => shapes.map(s => ({ ...s, o: (s.o ?? 1) * f }));
 const sText = (t, at, o = {}) => ({ k: 'text', screen: true, text: t, at, size: 1.6, color: PAL.white, ...o });
 const sLine = (a, b, o = {}) => ({ k: 'line', screen: true, a, b, color: PAL.white, w: 0.2, ...o });
@@ -96,14 +100,15 @@ export function q1Scene(ctx) {
     'November', 'December'];
   const yearLabel = y => (snap && y === last ? `${MONTHS[Number(snap.month.slice(5, 7)) - 1]} ${y}` : y);
 
-  // Click a call-out to have it fill the screen; click again (anywhere) to go back. One at a time.
-  const zoom = { id: null, on: false, at: -1e9 };
+  // Click a tile to have its chart fill the screen; click again (anywhere) to shrink it back. One at a time.
+  // at: when it last began to open or close; opened: when it opened (the chart draws itself in from then)
+  const zoom = { id: null, on: false, at: -1e9, opened: -1e9 };
   const zoomLevel = () => {
     if (!zoom.id) return 0;
     const s = (performance.now() - zoom.at) / 1000;
     return zoom.on ? ramp(s, 0, 0.7) : 1 - ramp(s, 0, 0.6);
   };
-  const resetZoom = () => { zoom.id = null; zoom.on = false; zoom.at = -1e9; };
+  const resetZoom = () => { zoom.id = null; zoom.on = false; zoom.at = -1e9; zoom.opened = -1e9; };
   const stageSize = () => { const el = document.getElementById('stage'); return [el.clientWidth, el.clientHeight]; };
   function zoomPointer(ids) {
     return ({ type, px, py }) => {
@@ -112,7 +117,7 @@ export function q1Scene(ctx) {
       if (type !== 'down') return false;
       if (zoom.on) { zoom.on = false; zoom.at = performance.now(); return true; } // a click anywhere goes back
       if (!hit) return false; // elsewhere: clicks still name lights
-      zoom.id = hit; zoom.on = true; zoom.at = performance.now();
+      zoom.id = hit; zoom.on = true; zoom.at = zoom.opened = performance.now();
       return true;
     };
   }
@@ -167,46 +172,39 @@ export function q1Scene(ctx) {
   }
   const listingLabels = () => labels((a, id) => listedText(id));
 
-  // (1) The top ten's share of market value, a white line; small: its two ends, full size: the share axis, decades.
+  // (1) The top ten's share of market value, a white line over the share axis and the decades; it draws itself in.
   const shareFrames = q1.frames.filter(f => f.year >= (q1.share_from || 0)); // earliest years have thin coverage
-  function shareShapes(t, z) {
-    const g = lerp(SHARE_SMALL, SHARE_BIG, z), dz = ramp(z, 0.4, 0.5), o = ramp(t, 0.1, 0.5), out = [];
+  function shareShapes(t) {
+    const g = SHARE_BIG, o = ramp(t, 0.1, 0.5), out = [];
     const xs = shareFrames.map(f => f.year), vals = shareFrames.map(f => f.top10_share), n = xs.length;
     const hi = Math.ceil(Math.max(...vals) * 10) / 10;
     const X = i => g.x0 + (i / Math.max(1, n - 1)) * (g.x1 - g.x0), Yv = v => g.y1 - (v / hi) * (g.y1 - g.y0);
     out.push(sText(CALLOUT_TITLES.share, [g.tx, g.ty], { anchor: 'start', size: g.ts, o }));
-    if (dz > 0) {
-      for (const v of [hi / 2, hi]) out.push(sLine([g.x0, Yv(v)], [g.x1, Yv(v)], { color: '#1f1f1f', w: 0.1, o: o * dz }));
-      for (const v of [0, hi / 2, hi]) out.push(sText(pct(v), [g.x0 - 1.7 * UX, Yv(v)], { anchor: 'end', size: g.lab, o: o * dz }));
-    }
+    for (const v of [hi / 2, hi]) out.push(sLine([g.x0, Yv(v)], [g.x1, Yv(v)], { color: '#1f1f1f', w: 0.1, o }));
+    for (const v of [0, hi / 2, hi]) out.push(sText(pct(v), [g.x0 - 1.7 * UX, Yv(v)], { anchor: 'end', size: g.lab, o }));
     out.push(sLine([g.x0, Yv(0)], [g.x1, Yv(0)], { color: '#6a6a6a', w: 0.1, o }));
-    // years: the two ends when small; every decade and the last year when full size
+    // years: every decade and the last year
     const yLab = g.y1 + g.labOff * UY;
     xs.forEach((y, i) => {
       const end = i === n - 1;
       if (i > 0 && !end && y % 10 !== 0) return;
-      if (dz > 0) out.push(sLine([X(i), g.y1], [X(i), g.y1 + 0.6 * UY * (g.lab / 1.3)], { color: '#5a5a5a', w: 0.1, o: o * dz }));
-      if (i === 0) out.push(sText(String(y), [X(i), yLab], { size: g.lab, o }));
-      else if (dz > 0) out.push(sText(String(end ? yearLabel(y) : y), [X(i), yLab], { size: g.lab, o: o * dz }));
+      out.push(sLine([X(i), g.y1], [X(i), g.y1 + 0.6 * UY * (g.lab / 1.3)], { color: '#5a5a5a', w: 0.1, o }));
+      out.push(sText(String(end ? yearLabel(y) : y), [X(i), yLab], { size: g.lab, o }));
     });
-    if (dz < 1) out.push(sText(String(xs[n - 1]), [X(n - 1), yLab], { size: g.lab, o: o * (1 - dz) }));
     // the line draws itself in; the two ends written
     const pts = vals.map((v, i) => [X(i), Yv(v)]), drawn = curveTo(pts, ramp(t, 0.3, 1.3, 'inOutSine') + 0);
     out.push(sPoly(drawn, { stroke: PAL.white, w: g.w, o }));
     out.push(sCircle(drawn[drawn.length - 1], { r: g.dot, fill: PAL.white, o }));
     out.push(sCircle(pts[0], { r: g.dot * 0.8, fill: PAL.white, o }));
-    // the first share: beside the line's start when small, above it when full size
-    const o0 = ramp(t, 0.3, 0.4);
-    if (dz < 1) out.push(sText(pct(vals[0]), [pts[0][0] - 0.9 * UX, pts[0][1]], { anchor: 'end', size: g.num, o: o0 * (1 - dz) }));
-    if (dz > 0) out.push(sText(pct(vals[0]), [pts[0][0], pts[0][1] - g.numUp * UY], { anchor: 'start', size: g.num, o: o0 * dz }));
+    out.push(sText(pct(vals[0]), [pts[0][0], pts[0][1] - g.numUp * UY], { anchor: 'start', size: g.num, o: ramp(t, 0.3, 0.4) }));
     out.push(sText(pct(vals[n - 1]), [pts[n - 1][0] + g.numOff * UX, pts[n - 1][1]],
       { anchor: 'start', size: g.num, o: ramp(t, 1.5, 0.4) }));
     return out;
   }
 
   // (2) Two rows of ten dots on a timeline: when the top ten of 1970 and of the last year first listed.
-  function listingShapes(t, z) {
-    const g = lerp(LIST_SMALL, LIST_BIG, z), Y0 = 1920, Y1 = 2025, o = ramp(t, 0.2, 0.8), out = [];
+  function listingShapes(t) {
+    const g = LIST_BIG, Y0 = 1920, Y1 = 2025, o = ramp(t, 0.2, 0.8), out = [];
     const frac = y => (Math.max(Y0 + 5, y) - Y0) / (Y1 - Y0), X = y => g.x0 + frac(y) * (g.x1 - g.x0);
     const fA = q1.frames.find(f => f.year === 1970) || q1.frames[0], fB = q1.frames[q1.frames.length - 1];
     out.push(sText(CALLOUT_TITLES.listed, [g.tx, g.ty], { anchor: 'start', size: g.ts, o }));
@@ -220,7 +218,7 @@ export function q1Scene(ctx) {
       const pos = new Map();
       f.sky.slice(0, 10).forEach((sk, i) => {
         const yr = listed[String(sk[0])]; if (yr == null) return;
-        // stack dots that would touch on the small chart (same grouping at every zoom)
+        // stack dots that would touch (the grouping the small call-out used)
         const key = Math.round(frac(yr) * 41.6), n = pos.get(key) || 0; pos.set(key, n + 1);
         const f2 = ramp(t, start + i * 0.08, 0.6);
         const x = X(yr) + (n % 5) * g.dx * UX, yy = y - Math.floor(n / 5) * g.dy * UY;
@@ -229,20 +227,38 @@ export function q1Scene(ctx) {
       });
     };
     row(fA, g.yA, `Top ten, ${fA.year}`, 0.6);
-    row(fB, g.yB, `Top ten, ${z > 0.5 ? yearLabel(fB.year) : fB.year}`, 1.6);
+    row(fB, g.yB, `Top ten, ${yearLabel(fB.year)}`, 1.6);
     return out;
   }
 
-  // (3) Intangible assets: the glowing line of q1intangibles.js, small in its slot or the full chart.
+  // (3) Intangible assets: the full glowing line of q1intangibles.js.
   const intan = q1.intangibles && q1.intangibles.years && q1.intangibles.years.length ? q1.intangibles : null;
-  const intanSmall = screenToFlat(INTAN_SMALL);
-  const intanShapes = (t, z) => flatToScreen(intangiblesShapes(intan, t,
-    { L: lerp(intanSmall, INTAN_CHART, z), z, draw: INTAN_DRAW, head: INTAN_HEAD }));
+  const intanShapes = t => flatToScreen(intangiblesShapes(intan, t, { draw: INTAN_DRAW }));
 
-  const calloutShapes = (id, t, z) => (id === 'share' ? shareShapes(t, z) : id === 'listed' ? listingShapes(t, z)
-    : intanShapes(t, z));
+  const calloutShapes = (id, t) => (id === 'share' ? shareShapes(t) : id === 'listed' ? listingShapes(t) : intanShapes(t));
 
-  // Each move's source covers what is on screen; a zoomed call-out shows its own.
+  // A closed tile: a black square, a thin white edge, its short label (fading in over its own clock t).
+  function tileShapes(id, t) {
+    const b = slotBox(CALLOUTS.indexOf(id)), o = ramp(t, 0.1, 0.5);
+    return [
+      { k: 'rect', screen: true, a: [b.x0, b.y0], b: [b.x1, b.y1], fill: '#000', fo: 1, stroke: PAL.white, w: 0.16, r: 0.5, o },
+      sText(TILE_TEXT[id] || TILE_LABELS[id], [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2], { size: TILE_U, o }),
+    ];
+  }
+  // The tile at zoom z: its edge grows to the stage's and goes, its label goes, and its chart grows out of it, full
+  // size at z = 1 (drawing itself in from when the tile was clicked).
+  function openShapes(id, z) {
+    const b = slotBox(CALLOUTS.indexOf(id)), c = [mixN((b.x0 + b.x1) / 2, 0.5, z), mixN((b.y0 + b.y1) / 2, 0.5, z)];
+    const chart = calloutShapes(id, (performance.now() - zoom.opened) / 1000);
+    return [
+      { k: 'rect', screen: true, a: [mixN(b.x0, 0, z), mixN(b.y0, 0, z)], b: [mixN(b.x1, 1, z), mixN(b.y1, 1, z)],
+        stroke: PAL.white, w: 0.16, r: 0.5 * (1 - z), o: 1 - ramp(z, 0.4, 0.6, 'linear') },
+      sText(TILE_TEXT[id] || TILE_LABELS[id], c, { size: TILE_U, o: 1 - ramp(z, 0, 0.3, 'linear') }),
+      ...fade(z >= 1 ? chart : shrinkShapes(chart, c, mixN(b.y1 - b.y0, 1, z)), ramp(z, 0.1, 0.4, 'linear')),
+    ];
+  }
+
+  // Each move's source covers what is on screen; an opened chart shows its own.
   const LISTED_SOURCE = 'Source: CRSP via WRDS. Year each company first listed on an exchange CRSP covers (CRSP begins '
     + 'in 1926); market value each December.';
   const SOURCE = { share: q1.source_line || SOURCES.q1, listed: LISTED_SOURCE,
@@ -260,8 +276,8 @@ export function q1Scene(ctx) {
     ctx.overlay.source(big ? SOURCE[big] : MOVE_SOURCE[move]);
   }
 
-  // A move with call-outs. Those already on screen in the move before stay put; a new one comes in; one the move
-  // before had and this one hasn't (stepping back) fades away. The zoomed one is drawn last, over a dark stage.
+  // A move with tiles. Those already on screen in the move before stay put; a new one comes in; one the move
+  // before had and this one hasn't (stepping back) fades away. An opened one is drawn last, over a dark stage.
   function calloutMove(id, moveLabels) {
     const ids = MOVE_CALLOUTS[id];
     let stay = new Set(), leaving = [];
@@ -282,12 +298,12 @@ export function q1Scene(ctx) {
       labels: moveLabels,
       draw(t) {
         const z = zoomLevel(), zid = z > 0.001 && ids.includes(zoom.id) ? zoom.id : null, out = [];
-        const own = c => (stay.has(c) ? 1e9 : t); // a call-out's own clock: settled if it was already there
-        if (t < 0.6) for (const c of leaving) out.push(...fade(calloutShapes(c, 1e9, 0), 1 - ramp(t, 0, 0.5)));
-        for (const c of ids) if (c !== zid) out.push(...calloutShapes(c, own(c), 0));
+        const own = c => (stay.has(c) ? 1e9 : t); // a tile's own clock: settled if it was already there
+        if (t < 0.6) for (const c of leaving) out.push(...fade(tileShapes(c, 1e9), 1 - ramp(t, 0, 0.5)));
+        for (const c of ids) if (c !== zid) out.push(...tileShapes(c, own(c)));
         if (zid) {
           out.push({ k: 'rect', screen: true, a: [0, 0], b: [1, 1], fill: '#000', fo: 0.985 * z });
-          out.push(...calloutShapes(zid, own(zid), z));
+          out.push(...openShapes(zid, z));
         }
         return out;
       },
@@ -345,7 +361,22 @@ export function q1Scene(ctx) {
   return {
     id: 'q1',
     beats: [
+      // (Q1 opens on its question, then the question in the header: q1-ask, src/scenes/ask.js.)
       {
+        // The empty chart: the market-value axis, 1970 and the sector key, no towers yet. tile: false, so the
+        // master view's tile pictures the next move, 1970's towers (tools/tiles.js).
+        id: 'q1-axes',
+        tile: false,
+        enter(instant) {
+          setup();
+          go(ctx, SHOTS.heights, 0, true); // nothing on screen yet moves with the camera: straight to the chart's view
+          H = at(first);
+          ctx.world.setTargets(new Map(), { duration: dur(ctx, 700) }); // back from the towers: they sink away
+          ctx.overlay.year(first);
+        },
+      },
+      {
+        // 1970's top 50 rise, the top ten named
         id: 'q1-open',
         enter(instant) {
           setup();
