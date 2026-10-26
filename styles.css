@@ -114,11 +114,11 @@ body { cursor: default; -webkit-font-smoothing: antialiased; }
 .hub-tile.seen .hub-label { color: #fff; }
 .hub-tile.seen .hub-label::after { content: '  ✓'; color: #fff; }
 .hub-tile.zooming .hub-label { opacity: 0; }
-/* Takeaways: the button flips every card, left to right, to its question's punchline */
-.hub-back { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 9%;
+/* Takeaways: the button flips every card, left to right, to its question's short takeaway */
+.hub-back { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 7%;
   background: #000; border: 1px solid #7FCBFF; border-radius: calc(var(--u) * 0.5); color: #fff; text-align: center;
   box-shadow: 0 0 calc(var(--u) * 1.4) rgba(127, 203, 255, 0.35), inset 0 0 calc(var(--u) * 1.2) rgba(127, 203, 255, 0.12);
-  font-size: calc(var(--u) * 3.4); font-weight: 600; line-height: 1.2; text-wrap: balance;
+  font-size: calc(var(--u) * 4.6); font-weight: 600; line-height: 1.15; text-wrap: balance;
   text-shadow: 0 0 calc(var(--u) * 0.6) rgba(127, 203, 255, 0.9), 0 0 calc(var(--u) * 1.8) rgba(127, 203, 255, 0.45);
   backface-visibility: hidden; transform: rotateY(180deg);
   transition: transform 0.7s cubic-bezier(0.65, 0, 0.35, 1) var(--flip-delay, 0s); }

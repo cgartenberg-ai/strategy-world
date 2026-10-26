@@ -6,8 +6,9 @@ import { go, dur } from './scenes/common.js';
 import { VIEWS } from './flow/views.js';
 import { MODULES } from './flow/modules.js';
 
-// What each tile turns into when the master view flips to its takeaways: the item's punchline ('' = none).
-export const hubBacks = (items, modules = MODULES) => items.map(it => modules[it.id]?.insight || '');
+// What each tile turns into when the master view flips to its takeaways: the item's short takeaway, else its
+// punchline ('' = none).
+export const hubBacks = (items, modules = MODULES) => items.map(it => modules[it.id]?.takeaway || modules[it.id]?.insight || '');
 const flippedViews = new Set(); // master views showing their takeaways (kept while you come and go)
 const autoFlipped = new Set(); // ...of those, the ones that turned by themselves (only the final showing keeps them)
 
