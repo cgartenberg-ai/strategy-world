@@ -14,12 +14,15 @@ const autoFlipped = new Set(); // ...of those, the ones that turned by themselve
 
 // Whether a master view comes up on its takeaways (`now`) or turns to them a beat later (`later`). A flip by hand
 // (the Takeaways button) sticks; the final showing's own flip belongs to that showing, so Left to an earlier one
-// brings the questions back. st = {flipped, auto}: sets of master-view ids.
-export function flipOnShow(st, key, autoFlip) {
+// brings the questions back. st = {flipped, auto}: sets of master-view ids. settled (export mode: stills for the run
+// sheet and the tile pictures): the final showing comes up already flipped.
+export function flipOnShow(st, key, autoFlip, settled = false) {
   if (!autoFlip && st.auto.has(key)) { st.auto.delete(key); st.flipped.delete(key); }
+  if (autoFlip && settled && !st.flipped.has(key)) { st.flipped.add(key); st.auto.add(key); }
   const now = st.flipped.has(key);
   return { now, later: !now && !!autoFlip };
 }
+const SETTLED = typeof location !== 'undefined' && new URLSearchParams(location.search).has('export');
 
 // Tiles in stage fractions {x, y, w, h}; each is a 16:9 picture of the stage (so w equals h as fractions).
 // Up to four in a row; seven sit four over three. Room is left under each tile for its label.
@@ -189,7 +192,7 @@ export function createHubLayer(stage) {
       // autoFlip (the six questions' final showing): the cards turn to their takeaways by themselves, a beat after
       // the view comes up, so the room sees the questions first
       clearTimeout(autoTimer);
-      const f = flipOnShow({ flipped: flippedViews, auto: autoFlipped }, key, autoFlip);
+      const f = flipOnShow({ flipped: flippedViews, auto: autoFlipped }, key, autoFlip, SETTLED);
       if (f.now) setFlipped(true, false);
       else if (f.later) autoTimer = setTimeout(() => { if (shownKey === key) { setFlipped(true); autoFlipped.add(key); } }, 1100);
     }
